@@ -1,0 +1,218 @@
+#!/bin/sh
+
+# Copyright (c) 2002 Yuya.Nishida.
+# 
+# Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+# 
+#    1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+#    2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+#    3. The name of the author may not be used to endorse or promote products derived from this software without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+num=10
+date=
+zip='bzip2 -9c'
+suffix=.bz2
+delete=
+empty=
+prefix=
+
+usage() {
+    cat 1>&2 <<EOF
+usage: frotate [OPTIONS] [--] file1 file2 ...
+
+You can use directory file(require tar).
+
+--help		this message
+--rotate=#	set number of rotate files (default 10)
+--date=FORMAT	rotate(?) by date with format
+--date		same as --date=%y%m%d-%H%M
+--date-long	same as --date=%Y%m%d-%H%M%S
+--gzip		use gzip
+--bzip2		use bzip2 (default)
+--nozip		no zipped
+--split=#	split rotate files (ex. --split=512k split by 512 kilo bytes)
+--split		same as --split=2047m
+--delete	delete original file and/or directory
+--empty		make 0 size file or empty directory after delete original file
+--prefix-dot	make .FILENAME
+EOF
+    exit 1
+}
+
+# prefix suffix
+rotate_old() {
+    prefix1="$1"
+    suffix1="$2"
+
+    j=`expr $num - 1`
+    rm -f "$prefix1$j$suffix1"
+    until [ $j = 0 ]
+    do
+	k=`expr $j - 1`
+	[ -e "$prefix1$k$suffix1" ] && \
+	    mv -f "$prefix1$k$suffix1" "$prefix1$j$suffix1"
+	j=$k
+    done
+}
+
+# prefix suffix
+rotate_old_split() {
+    prefix1="$1"
+    suffix1="$2"
+
+    j=`expr $num - 1`
+    rm -f "$prefix1$j$suffix1."*
+    until [ $j = 0 ]
+    do
+	k=`expr $j - 1`
+	if [ -e "$prefix1$k$suffix1.aa" ]
+	then
+	    for l1 in a b c d e f g h i j k l m n o p q r s t u v w x y z
+	    do
+		for l2 in a b c d e f g h i j k l m n o p q r s t u v w x y z
+		do
+		    if [ -e "$prefix1$k$suffix1.$l1$l2" ]
+		    then
+			mv -f "$prefix1$k$suffix1.$l1$l2" \
+			      "$prefix1$j$suffix1.$l1$l2"
+		    else
+			break 2
+		    fi
+		done
+	    done
+	fi
+	j=$k
+    done
+}
+
+until [ "$1" = '' ]
+do
+    case "$1" in
+    --rotate=*)
+	num="`expr \"$1\" : '[^=]*=\(.*\)$'`"
+	date=
+	;;
+    --date=*)
+	date="+`expr \"$1\" : '[^=]*=\(.*\)$'`"
+	num=
+	;;
+    --date)
+    	date="+%y%m%d-%H%M"
+	num=
+    	;;
+    --date-long)
+    	date="+%Y%m%d-%H%M%S"
+	num=
+    	;;
+    --gzip)
+	zip='gzip -9c'
+	suffix=.gz
+	;;
+    --bzip2)
+	zip='bzip2 -9c'
+	suffix=.bz2
+	;;
+    --nozip)
+	zip=cat
+	suffix=
+	;;
+    --split=*)
+	split_size="`expr \"$1\" : '[^=]*=\(.*\)$'`"
+	[ "$split_size" = '' ] && split_size=2047m
+	;;
+    --split)
+	split_size=2047m
+	;;
+    --delete)
+	delete=y
+	;;
+    --empty)
+    	delete=
+    	empty=y
+    	;;
+    --prefix-dot)
+	prefix=.
+	;;
+    --help)
+	usage
+	;;
+    --)
+	shift
+	break
+	;;
+    -*)
+	echo 'unknown option:' $1 1>&2
+	usage
+	;;
+    *)
+	break
+	;;
+    esac
+    shift
+done
+
+if [ "$1" = '' ]
+then
+    cat 1>&2 <<EOF
+frotate: no filenames
+
+frotate --help: print help message
+EOF
+fi
+
+if [ "$num" = '' ]
+then
+    before_suffix=`date "$date"`
+else
+    before_suffix=0
+fi
+
+for i in $*; do
+    i=`expr "$i" : '\(.*\)/$' \| "$i"`
+    if [ -f "$i" ]
+    then
+	if [ "$split_size" = '' ]
+	then
+	    # split 機能無
+	    [ "$before_suffix" = 0 ] && rotate_old "$prefix$i." "$suffix"
+	    $zip "$i" >"$prefix$i.$before_suffix$suffix"
+	else
+	    # split 機能有
+	    [ "$before_suffix" = 0 ] && rotate_old_split "$prefix$i." "$suffix"
+	    $zip "$i" | split -b "$split_size" - "$prefix$i.$before_suffix$suffix."
+	fi
+	if [ "$delete" = 'y' ]
+	then
+	    rm -f "$i"
+	elif [ "$empty" = 'y' ]
+	then
+	    cat /dev/null >"$i"
+	fi
+    elif [ -d $i ]
+    then
+	if [ "$split_size" = '' ]
+	then
+	    # split 機能無
+	    [ "$before_suffix" = 0 ] && rotate_old "$prefix$i." ".tar$suffix"
+	    tar cf - "$i" | $zip >"$prefix$i.$before_suffix.tar$suffix"
+	else
+	    # split 機能有
+	    [ "$before_suffix" = 0 ] && rotate_old_split "$prefix$i." ".tar$suffix"
+	    tar cf - "$i" | $zip | split -b "$split_size" - "$prefix$i.$before_suffix.tar$suffix."
+	fi
+	if [ "$delete" = 'y' ]
+	then
+	    rm -rf "$i"
+	elif [ "$empty" = 'y' ]
+	then
+	    cat /dev/null >"$i"
+	fi
+    else
+	echo 'unknown file type:' "$i" 1>&2
+	exit 1
+    fi
+done
+
+exit 0
