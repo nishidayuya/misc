@@ -10,9 +10,11 @@
 # 
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+version='frotate 0.0.0 $Id: frotate,v 1.14 2002/12/12 03:59:14 yuya Exp $'
 num=10
 date=
 zip='bzip2 -9c'
+unzip='bzip2 -dc'
 suffix=.bz2
 delete=
 empty=
@@ -37,6 +39,7 @@ You can use directory file(require tar).
 --delete	delete original file and/or directory
 --empty		make 0 size file or empty directory after delete original file
 --prefix-dot	make .FILENAME
+--version	print version
 EOF
     exit 1
 }
@@ -108,14 +111,17 @@ do
     	;;
     --gzip)
 	zip='gzip -9c'
+	unzip='gzip -dc'
 	suffix=.gz
 	;;
     --bzip2)
 	zip='bzip2 -9c'
+	unzip='bzip2 -dc'
 	suffix=.bz2
 	;;
     --nozip)
 	zip=cat
+	unzip=cat
 	suffix=
 	;;
     --split=*)
@@ -137,6 +143,10 @@ do
 	;;
     --help)
 	usage
+	;;
+    --version)
+	echo "$version"
+	exit 0
 	;;
     --)
 	shift
@@ -173,13 +183,27 @@ for i in $*; do
     i=`expr "$i" : '\(.*\)/$' \| "$i"`
     if [ -f "$i" ]
     then
+	if [ ! -s "$i" ]
+	then
+	    continue
+	fi
 	if [ "$split_size" = '' ]
 	then
 	    # split 機能無
+	    if [ -e "$prefix$i.$before_suffix$suffix" ] && $unzip "$prefix$i.$before_suffix$suffix" 2>/dev/null | cmp --silent "$i" -
+	    then
+		echo 'already rotated:' "$i" 1>&2
+		continue
+	    fi
 	    [ "$before_suffix" = 0 ] && rotate_old "$prefix$i." "$suffix"
 	    $zip "$i" >"$prefix$i.$before_suffix$suffix"
 	else
 	    # split 機能有
+	    if [ -e "$prefix$i.$before_suffix$suffix.aa" ] && cat "$prefix$i.$before_suffix$suffix."* | $unzip 2>/dev/null | cmp --silent "$i" -
+	    then
+		echo 'already rotated:' "$i" 1>&2
+		continue
+	    fi
 	    [ "$before_suffix" = 0 ] && rotate_old_split "$prefix$i." "$suffix"
 	    $zip "$i" | split -b "$split_size" - "$prefix$i.$before_suffix$suffix."
 	fi
@@ -192,6 +216,10 @@ for i in $*; do
 	fi
     elif [ -d $i ]
     then
+	if [ -z "`ls $i`" ]
+	then
+	    continue
+	fi
 	if [ "$split_size" = '' ]
 	then
 	    # split 機能無
