@@ -1,0 +1,27 @@
+#! /usr/bin/env ruby
+
+require "optparse"
+
+options = {
+  :left_time_only => false,
+}
+OptionParser.new do |opt|
+  opt.banner = "Usage: #{opt.program_name} [options] <query> [index]..."
+  opt.on("--left-time-only", "only print left time") do |v|
+    options[:left_time_only] = true
+  end
+end
+
+before_time = Time.now
+
+STDOUT.sync = true
+while line = STDIN.gets
+  time = Time.now
+  if options[:left_time_only]
+    sec = time.tv_sec + time.tv_usec / 1000.0 / 1000
+    STDOUT.printf("%.6f %s", time.strftime("%FT%T"), time.usec, line)
+  else
+    STDOUT.printf("%s.%06d %s", time.strftime("%FT%T"), time.usec, line)
+  end
+  before_time = time
+end
