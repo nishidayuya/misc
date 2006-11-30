@@ -2,6 +2,8 @@
 
 require "optparse"
 
+SEPARATOR = "|"
+
 options = {
   :left_time_only => false,
 }
@@ -19,9 +21,10 @@ while line = STDIN.gets
   time = Time.now
   if options[:left_time_only]
     sec = time.tv_sec + time.tv_usec / 1000.0 / 1000
-    STDOUT.printf("%.6f %s", time.strftime("%FT%T"), time.usec, line)
+    time_str = sprintf("%.6f", sec)
   else
-    STDOUT.printf("%s.%06d %s", time.strftime("%FT%T"), time.usec, line)
+    time_str = sprintf("%s.%06d", time.strftime("%FT%T"), time.usec)
   end
+  print([time_str, line].join(SEPARATOR))
   before_time = time
 end
