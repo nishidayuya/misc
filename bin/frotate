@@ -10,7 +10,7 @@
 # 
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-version='frotate 0.0.0 $Id: frotate,v 1.14 2002/12/12 03:59:14 yuya Exp $'
+version='frotate 0.0.0 $Id: frotate,v 1.15 2003/03/14 00:35:18 yuya Exp $'
 num=10
 date=
 zip='bzip2 -9c'
@@ -179,6 +179,13 @@ else
     before_suffix=0
 fi
 
+if [ "`which cp-attributes`" = '' ]
+then
+    has_cp_attributes=false
+else
+    has_cp_attributes=true
+fi
+
 for i in $*; do
     i=`expr "$i" : '\(.*\)/$' \| "$i"`
     if [ -f "$i" ]
@@ -197,6 +204,7 @@ for i in $*; do
 	    fi
 	    [ "$before_suffix" = 0 ] && rotate_old "$prefix$i." "$suffix"
 	    $zip "$i" >"$prefix$i.$before_suffix$suffix"
+            [ $has_cp_attributes = true ] && cp-attributes "$i" "$prefix$i.$before_suffix$suffix"
 	else
 	    # split 機能有
 	    if [ -e "$prefix$i.$before_suffix$suffix.aa" ] && cat "$prefix$i.$before_suffix$suffix."* | $unzip 2>/dev/null | cmp --silent "$i" -
@@ -206,6 +214,13 @@ for i in $*; do
 	    fi
 	    [ "$before_suffix" = 0 ] && rotate_old_split "$prefix$i." "$suffix"
 	    $zip "$i" | split -b "$split_size" - "$prefix$i.$before_suffix$suffix."
+            if [ $has_cp_attributes = true ]
+            then
+                for j in "$prefix$i.$before_suffix$suffix."*
+                do
+                    cp-attributes "$i" "$j"
+                done
+            fi
 	fi
 	if [ "$delete" = 'y' ]
 	then
@@ -225,17 +240,28 @@ for i in $*; do
 	    # split 機能無
 	    [ "$before_suffix" = 0 ] && rotate_old "$prefix$i." ".tar$suffix"
 	    tar cf - "$i" | $zip >"$prefix$i.$before_suffix.tar$suffix"
+            [ $has_cp_attributes = true ] && cp-attributes "$i" "$prefix$i.$before_suffix.tar$suffix"
 	else
 	    # split 機能有
 	    [ "$before_suffix" = 0 ] && rotate_old_split "$prefix$i." ".tar$suffix"
 	    tar cf - "$i" | $zip | split -b "$split_size" - "$prefix$i.$before_suffix.tar$suffix."
+            if [ $has_cp_attributes = true ]
+            then
+                for j in "$prefix$i.$before_suffix$suffix."*
+                do
+                    cp-attributes "$i" "$j"
+                done
+            fi
 	fi
 	if [ "$delete" = 'y' ]
 	then
-	    rm -rf "$i"
+            mv "$i" "$i".REMOVE
+            rm -rf "$i".REMOVE
 	elif [ "$empty" = 'y' ]
 	then
-	    cat /dev/null >"$i"
+            mv "$i" "$i".REMOVE
+            mkdir "$i"
+            rm -rf "$i".REMOVE
 	fi
     else
 	echo 'unknown file type:' "$i" 1>&2
