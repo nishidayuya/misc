@@ -196,20 +196,20 @@ for i in $*; do
 	fi
 	if [ "$split_size" = '' ]
 	then
-	    # split ��ǽ̵
+	    # split 機能無
 	    if [ -e "$prefix$i.$before_suffix$suffix" ] && $unzip "$prefix$i.$before_suffix$suffix" 2>/dev/null | cmp --silent "$i" -
 	    then
-		echo 'already rotated:' "$i" 1>&2
+#		echo 'already rotated:' "$i" 1>&2
 		continue
 	    fi
 	    [ "$before_suffix" = 0 ] && rotate_old "$prefix$i." "$suffix"
 	    $zip "$i" >"$prefix$i.$before_suffix$suffix"
             [ $has_cp_attributes = true ] && cp-attributes "$i" "$prefix$i.$before_suffix$suffix"
 	else
-	    # split ��ǽͭ
+	    # split 機能有
 	    if [ -e "$prefix$i.$before_suffix$suffix.aa" ] && cat "$prefix$i.$before_suffix$suffix."* | $unzip 2>/dev/null | cmp --silent "$i" -
 	    then
-		echo 'already rotated:' "$i" 1>&2
+#		echo 'already rotated:' "$i" 1>&2
 		continue
 	    fi
 	    [ "$before_suffix" = 0 ] && rotate_old_split "$prefix$i." "$suffix"
@@ -237,12 +237,12 @@ for i in $*; do
 	fi
 	if [ "$split_size" = '' ]
 	then
-	    # split ��ǽ̵
+	    # split 機能無
 	    [ "$before_suffix" = 0 ] && rotate_old "$prefix$i." ".tar$suffix"
 	    tar cf - "$i" | $zip >"$prefix$i.$before_suffix.tar$suffix"
             [ $has_cp_attributes = true ] && cp-attributes "$i" "$prefix$i.$before_suffix.tar$suffix"
 	else
-	    # split ��ǽͭ
+	    # split 機能有
 	    [ "$before_suffix" = 0 ] && rotate_old_split "$prefix$i." ".tar$suffix"
 	    tar cf - "$i" | $zip | split -b "$split_size" - "$prefix$i.$before_suffix.tar$suffix."
             if [ $has_cp_attributes = true ]
