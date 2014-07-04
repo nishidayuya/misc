@@ -1,0 +1,19 @@
+#! /bin/sh
+
+timespec=$1
+if test -z "$timespec"
+then
+    cat 1>&2 <<EOF
+timespec is not found.
+ex:
+  % git change-datetime '+ 2days'
+  % git change-datetime '- 10days'
+EOF
+    exit 1
+fi
+
+git show -q --format='format:%ai' \
+| xargs -0 sh -c \
+    'timespec="$1"; shift; date -d "$0 $timespec" --iso-8601=seconds' \
+    "$timespec" \
+| xargs sh -c 'faketime $0 git commit --amend --no-edit --reset-author'
