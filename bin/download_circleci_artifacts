@@ -1,0 +1,41 @@
+#!/usr/bin/env ruby
+
+USAGE = <<USAGE
+Usage: CIRCLECI_TOKEN=token #{File.basename(Process.argv0)} namespace/project_name job_number_1 [job_number_2] [...]
+USAGE
+
+require "json"
+require "open-uri"
+require "pathname"
+
+circleci_token = ENV.fetch("CIRCLECI_TOKEN")
+project_name = ARGV.shift
+job_numbers = ARGV
+
+if job_numbers.empty?
+  $stderr.puts(USAGE)
+  exit(1)
+end
+
+job_numbers.each do |job_number|
+  uri = URI("https://circleci.com/api/v2/project/gh/#{project_name}/#{job_number}/artifacts")
+  payload = uri.read(
+    "Content-Type" => "application/json",
+    "Accept" => "application/json",
+    "Circle-Token" => circleci_token,
+  )
+  o = JSON.parse(payload, symbolize_names: true)
+  items = o[:items]
+
+  output_path_root = Pathname("circleci_artifacts/#{job_number}")
+  items.each do |h|
+    output_path = output_path_root / h[:path]
+    output_path.parent.mkpath
+    download_uri = URI(h[:url])
+    content = download_uri.read(
+      "Circle-Token" => circleci_token,
+    )
+    wrote_bytes = output_path.write(content)
+    puts("wrote #{wrote_bytes} bytes: path=#{output_path} download_uri=#{download_uri}")
+  end
+end
