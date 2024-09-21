@@ -1,0 +1,20 @@
+#!/bin/sh
+
+set -eu
+
+dpkg --get-selections > dpkg-get-selections.txt
+dpkg -l > dpkg-l.txt
+lsb_release -a > lsb_release-a.txt
+lsblk > lsblk.txt
+lscpu > lscpu.txt
+#lsgpu
+#lshw
+lsipc > lsipc.txt
+lslocks > lslocks.txt
+lslogins > lslogins.txt
+lsmem > lsmem.txt
+lsmod | sort > lsmod.txt
+lsns > lsns.txt
+lspci > lspci.txt
+lsusb > lsusb.txt
+uname -a > uname-a.txt
