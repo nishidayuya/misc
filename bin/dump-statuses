@@ -30,5 +30,6 @@ lsmem | write_file_if_changed lsmem.txt
 lsmod | sort | write_file_if_changed lsmod.txt
 lsns | write_file_if_changed lsns.txt
 lspci | write_file_if_changed lspci.txt
+lsscsi | write_file_if_changed lsscsi.txt
 lsusb | write_file_if_changed lsusb.txt
 uname -a | write_file_if_changed uname-a.txt
