@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -eux -o pipefail
+
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends \
+  postgresql \
+  libpq-dev
+
+postgresql_major_version=$(psql --version | awk '{print($3)}' | sed -e 's/\..*//')
+pg_hba_conf_path=/etc/postgresql/$postgresql_major_version/main/pg_hba.conf
+if ! sudo egrep '^local +all +postgres +trust$' $pg_hba_conf_path
+then
+  echo 'local all postgres trust' | sudo tee $pg_hba_conf_path
+  sudo systemctl reload postgresql.service
+fi
+
+PAGER=cat psql --user=postgres --command='\l' template1

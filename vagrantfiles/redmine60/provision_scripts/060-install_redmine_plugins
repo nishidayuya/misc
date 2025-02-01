@@ -1,0 +1,32 @@
+#!/bin/bash
+
+redmine_plugin_uris="
+  https://github.com/nishidayuya/redmine_ruby_wasm.git
+  https://github.com/nishidayuya/redmine_text_format_converter.git
+  https://github.com/nishidayuya/redmine_the_never_deleting_story.git
+"
+
+eval "$(~/.local/bin/mise activate bash --shims)"
+
+set -eux -o pipefail
+
+for uri in $redmine_plugin_uris
+do
+  cd /var/lib/redmine/plugins/
+  output=$(echo $uri | sed -e 's|.*/||' -e 's/\.git$//')
+  if ! test -d $output
+  then
+    git clone $uri
+  fi
+done
+
+cd /var/lib/redmine
+bundle
+bin/rails redmine:plugins RAILS_ENV=production
+
+set +x
+cat <<EOF
+
+==============================
+Run: cd $(pwd) && bin/rails server -e production
+EOF
