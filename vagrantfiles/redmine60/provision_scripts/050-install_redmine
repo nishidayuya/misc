@@ -1,8 +1,5 @@
 #!/bin/bash
 
-ruby_version=3.3.6
-redmine_version=6.0.3
-
 eval "$(~/.local/bin/mise activate bash --shims)"
 
 set -eux -o pipefail
@@ -15,17 +12,17 @@ sudo apt-get install -y --no-install-recommends \
   imagemagick \
   fonts-takao-pgothic
 
-if ! test -d /var/lib/redmine
+if ! test -d "$REDMINE_PATH"
 then
-  sudo install -m 755 -o $(id -un) -g $(id -gn) -d /var/lib/redmine
-  git clone --branch=$redmine_version https://github.com/redmine/redmine.git /var/lib/redmine
-  cd /var/lib/redmine
+  sudo install -m 755 -o $(id -un) -g $(id -gn) -d "$REDMINE_PATH"
+  git clone --branch=$REDMINE_VERSION https://github.com/redmine/redmine.git "$REDMINE_PATH"
+  cd "$REDMINE_PATH"
   git show
 fi
 
-cd /var/lib/redmine
+cd "$REDMINE_PATH"
 
-echo $ruby_version > .ruby-version
+echo $RUBY_VERSION > .ruby-version
 
 cat <<EOF > config/database.yml
 production: &production

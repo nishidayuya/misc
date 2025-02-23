@@ -1,7 +1,5 @@
 #!/bin/bash
 
-ruby_version=3.3.6
-
 eval "$(~/.local/bin/mise activate bash --shims)"
 
 set -eux -o pipefail
@@ -25,4 +23,4 @@ sudo apt-get install -y --no-install-recommends \
   libdb-dev \
   uuid-dev
 
-mise install ruby@$ruby_version
+mise install "ruby@$RUBY_VERSION"

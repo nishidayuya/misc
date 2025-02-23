@@ -12,7 +12,7 @@ set -eux -o pipefail
 
 for uri in $redmine_plugin_uris
 do
-  cd /var/lib/redmine/plugins/
+  cd "$REDMINE_PATH/plugins/"
   output=$(echo $uri | sed -e 's|.*/||' -e 's/\.git$//')
   if ! test -d $output
   then
@@ -20,7 +20,7 @@ do
   fi
 done
 
-cd /var/lib/redmine
+cd "$REDMINE_PATH"
 bundle
 bin/rails redmine:plugins RAILS_ENV=production
 
