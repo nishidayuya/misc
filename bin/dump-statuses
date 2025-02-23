@@ -2,19 +2,33 @@
 
 set -eu
 
-dpkg --get-selections > dpkg-get-selections.txt
-dpkg -l > dpkg-l.txt
-lsb_release -a > lsb_release-a.txt
-lsblk > lsblk.txt
-lscpu > lscpu.txt
-#lsgpu
-#lshw
-lsipc > lsipc.txt
-lslocks > lslocks.txt
-lslogins > lslogins.txt
-lsmem > lsmem.txt
-lsmod | sort > lsmod.txt
-lsns > lsns.txt
-lspci > lspci.txt
-lsusb > lsusb.txt
-uname -a > uname-a.txt
+output_path="${1:-.}"
+tmp_path="$(mktemp -d)"
+trap "rm -rf '$tmp_path'" EXIT
+
+write_file_if_changed() {
+  local filename="$1"
+
+  cat > "$tmp_path/$filename"
+  if test -f "$output_path/$filename" &&
+      cmp --quiet "$tmp_path/$filename" "$output_path/$filename"
+  then
+    return
+  fi
+  mv -f "$tmp_path/$filename" "$output_path/$filename"
+}
+
+dpkg --get-selections | write_file_if_changed dpkg-get-selections.txt
+dpkg -l | write_file_if_changed dpkg-l.txt
+lsb_release -a | write_file_if_changed lsb_release-a.txt
+lsblk | write_file_if_changed lsblk.txt
+lscpu | write_file_if_changed lscpu.txt
+lsipc | write_file_if_changed lsipc.txt
+lslocks | write_file_if_changed lslocks.txt
+lslogins | write_file_if_changed lslogins.txt
+lsmem | write_file_if_changed lsmem.txt
+lsmod | sort | write_file_if_changed lsmod.txt
+lsns | write_file_if_changed lsns.txt
+lspci | write_file_if_changed lspci.txt
+lsusb | write_file_if_changed lsusb.txt
+uname -a | write_file_if_changed uname-a.txt
