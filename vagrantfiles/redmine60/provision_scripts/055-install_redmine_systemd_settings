@@ -1,0 +1,30 @@
+#!/bin/bash
+
+eval "$(~/.local/bin/mise activate bash --shims)"
+
+set -eux -o pipefail
+
+cd /var/lib/redmine
+bundle_path=$(which bundle)
+
+sudo tee /etc/systemd/system/redmine.service <<EOF
+[Unit]
+Description=Redmine server
+After=network.target nss-lookup.target remote-fs.target
+
+[Service]
+Type=simple
+User=vagrant
+Group=vagrant
+WorkingDirectory=/var/lib/redmine
+ExecStart=$bundle_path exec bin/rails server -e production
+TimeoutSec=300
+ExecStop=/bin/kill -INT \${MAINPID}
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl --no-pager enable redmine
+sudo systemctl --no-pager start redmine
+sudo systemctl --no-pager status redmine
