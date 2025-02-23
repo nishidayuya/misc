@@ -10,6 +10,9 @@ eval "$(~/.local/bin/mise activate bash --shims)"
 
 set -eux -o pipefail
 
+find /vagrant/plugins -mindepth 1 -maxdepth 1 -type d |
+  xargs -r -n1 sh -eux -c 'cd "$REDMINE_PATH/plugins/" && ln -sfv $0'
+
 for uri in $redmine_plugin_uris
 do
   cd "$REDMINE_PATH/plugins/"
