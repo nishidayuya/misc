@@ -1,0 +1,26 @@
+#!/bin/sh
+
+set -eux
+
+# https://github.com/rbenv/ruby-build/wiki#ubuntudebianmint
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends \
+     autoconf \
+     patch \
+     build-essential \
+     rustc \
+     libssl-dev \
+     libyaml-dev \
+     libreadline6-dev \
+     zlib1g-dev \
+     libgmp-dev \
+     libncurses5-dev \
+     libffi-dev \
+     libgdbm6 \
+     libgdbm-dev \
+     libdb-dev \
+     uuid-dev
+
+asdf plugin add ruby
+asdf install ruby "$RUBY_VERSION"
+asdf set ruby "$RUBY_VERSION"

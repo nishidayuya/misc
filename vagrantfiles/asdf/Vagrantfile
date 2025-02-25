@@ -1,0 +1,36 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+def env_or_default(env_name, default)
+  env_value = ENV.fetch(env_name, "")
+  return env_value.empty? ? default : env_value
+end
+
+asdf_version = env_or_default("ASDF_VERSION", "0.16.4")
+ruby_version = env_or_default("RUBY_VERSION", "3.4.2")
+
+n_cpus = ENV.fetch("VAGRANT_CPUS") {
+  require "etc"
+  [1, Etc.nprocessors / 2].max
+}
+memory_mega_bytes = ENV.fetch("VAGRANT_MEMORY", 1024 * 8).to_i
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-24.04"
+
+  config.vm.provider(:virtualbox) do |vb|
+    vb.cpus = n_cpus
+    vb.memory = memory_mega_bytes
+  end
+
+  config.vm.provision(:shell, privileged: false, inline: <<~SHELL)
+    set -eux -o pipefail
+
+    export ASDF_VERSION=#{asdf_version}
+    export RUBY_VERSION=#{ruby_version}
+
+    export DEBIAN_FRONTEND=noninteractive
+
+    exec run-parts --verbose --exit-on-error /vagrant/provision_scripts
+  SHELL
+end
