@@ -1,0 +1,64 @@
+#!/bin/sh
+
+usage="usage: $(basename $0) date event_name slide_name tags allotted_time"
+
+date=$1
+event_name=$2
+slide_name=$3
+tags=$4
+allotted_time=$5
+
+if test "$allotted_time" = ""
+then
+  echo "$usage" 1>&2
+  exit 1
+fi
+
+id=$date-$event_name-$slide_name
+
+set -eux
+
+gem install rabbit
+git cococo --init=$id \
+  rabbit-slide new \
+    --no-use-gui \
+    --id=$id \
+    --markup-language=markdown \
+    --name=Yuya.Nishida. \
+    --base-name=$slide_name \
+    --rubygems-user=nishidayuya \
+    --speaker-deck-user=nishidayuya \
+    --allotted-time=$allotted_time \
+    --presentation-date=$date \
+    --width=1368 \
+    --height=768 \
+    --licenses=CC-BY-4.0 \
+    --tags=$tags
+mv -v $id rabbit-slide-nishidayuya-$id
+
+cd rabbit-slide-nishidayuya-$id
+
+git cococo ruby -e 'IO.write(".ruby-version", RUBY_VERSION + "\n")'
+git cococo bundle init
+git cococo sh -c '
+  sed -i -e "/^# gem/ d" Gemfile
+  cat >> Gemfile <<EOF
+gem "rabbit"
+gem "rake"
+EOF
+'
+git cococo bundle
+
+sed -i -e 's/TODO: //' README.md
+rake gem
+rake pdf
+
+ls -lh ./ pkg/ pdf/
+pwd
+
+set +x
+cat <<EOF
+PDFをコミットする際は以下
+
+git cococo sh -eux -c 'bundle exec rake pdf && git add -f pdf/*.pdf'
+EOF
