@@ -1,24 +1,37 @@
 #!/usr/bin/env ruby
 
 USAGE = <<USAGE
-Usage: CIRCLECI_TOKEN=token #{File.basename(Process.argv0)} namespace/project_name job_number_1 [job_number_2] [...]
+Usage: CIRCLECI_TOKEN=token #{File.basename(Process.argv0)} job_url1 [job_url2] [...]
 USAGE
 
 require "json"
 require "open-uri"
 require "pathname"
+require "uri"
 
 circleci_token = ENV.fetch("CIRCLECI_TOKEN")
-project_name = ARGV.shift
-job_numbers = ARGV
+s_job_uris = ARGV
 
-if job_numbers.empty?
+if s_job_uris.empty?
   $stderr.puts(USAGE)
   exit(1)
 end
+job_uris = s_job_uris.map { |s_job_uri|
+  if !s_job_uri.start_with?("https://app.circleci.com/pipelines/github/")
+    $stderr.puts("Unsupported job URI: #{s_job_uri.inspect}")
+    exit(1)
+  end
 
-job_numbers.each do |job_number|
-  uri = URI("https://circleci.com/api/v2/project/gh/#{project_name}/#{job_number}/artifacts")
+  URI(s_job_uri)
+}
+
+job_uris.each do |job_uri|
+  _c_pipelines, _scm, org_name, repository_name, _pipeline_number,
+  _c_workflows, _workflow_uuid,
+  _c_jobs_, s_job_number, * = *Pathname(job_uri.path).each_filename
+  job_number = Integer(s_job_number, 10)
+
+  uri = URI("https://circleci.com/api/v2/project/gh/#{org_name}/#{repository_name}/#{job_number}/artifacts")
   payload = uri.read(
     "Content-Type" => "application/json",
     "Accept" => "application/json",
