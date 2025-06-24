@@ -1,0 +1,53 @@
+#!/usr/bin/env ruby
+
+require "fileutils"
+
+require "combine_pdf"
+require "prawn"
+
+USAGE = <<EOS
+Usage: #{File.basename(Process.argv0)} input_pdf_path output_pdf_path page_top_cm
+EOS
+
+input_pdf_path = ARGV.shift
+output_pdf_path = ARGV.shift
+s_fill_top_cm = ARGV.shift
+if !s_fill_top_cm
+  $stderr.puts(USAGE)
+  exit(1)
+end
+fill_top_cm = Float(s_fill_top_cm)
+
+PT_PER_CM = 72 / 2.54 # 1inch = 72pt = 2.54cm
+ONE_PT_PER_CM = 2.54 / 72 # 1inch = 72pt = 2.54cm
+
+def build_overlay_pdf(fill_top_pt, width_pt, height_pt)
+  d = Prawn::Document.new(page_size: [width_pt, height_pt]) do
+    fill_color("FFFFFF")
+    fill_rectangle([0, height_pt], width_pt, fill_top_pt)
+  end
+  overlay_pdf = CombinePDF.parse(d.render)
+  return overlay_pdf
+end
+
+overlay_pdfs = Hash.new do |h, key|
+  h[key] = build_overlay_pdf(*key)
+end
+
+input_pdf = CombinePDF.load(input_pdf_path)
+output_pdf = CombinePDF.new
+
+fill_top_pt = fill_top_cm * PT_PER_CM
+input_pdf.pages.each do |page|
+  left_pt, top_pt, right_pt, bottom_pt = page[:MediaBox].map(&:to_f)
+
+  width_pt = right_pt - left_pt
+  height_pt = bottom_pt - top_pt
+
+  overlay_pdf = overlay_pdfs[[fill_top_pt, width_pt, height_pt]]
+
+  page << overlay_pdf.pages.first
+  output_pdf << page
+end
+
+output_pdf.save(output_pdf_path)
