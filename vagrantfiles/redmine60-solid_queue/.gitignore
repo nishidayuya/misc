@@ -1,0 +1,4 @@
+/.vagrant
+
+/plugins
+!/plugins/.keep

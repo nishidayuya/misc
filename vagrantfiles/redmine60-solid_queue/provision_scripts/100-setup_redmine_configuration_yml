@@ -1,0 +1,27 @@
+#!/bin/bash
+
+eval "$(~/.local/bin/mise activate bash --shims)"
+
+set -eux -o pipefail
+
+cd "$REDMINE_PATH"
+
+gateway_address="$(ip r | awk '/^default / {print($3)}')"
+cat <<EOF > config/configuration.yml
+default:
+  email_delivery:
+    delivery_method: :smtp
+    smtp_settings:
+      address: $gateway_address
+      port: 51025
+
+production:
+
+development:
+
+test:
+  email_delivery:
+    delivery_method: :test
+EOF
+
+sudo systemctl restart redmine.service

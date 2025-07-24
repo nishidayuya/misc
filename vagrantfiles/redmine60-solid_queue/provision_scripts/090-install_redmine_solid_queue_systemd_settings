@@ -1,0 +1,35 @@
+#!/bin/bash
+
+eval "$(~/.local/bin/mise activate bash --shims)"
+
+set -eux -o pipefail
+
+cd "$REDMINE_PATH"
+bundle_path=$(which bundle)
+
+sudo tee /etc/systemd/system/redmine_solid_queue.service <<EOF
+[Unit]
+Description=Solid Queue for Redmine
+After=network.target nss-lookup.target remote-fs.target
+
+[Service]
+Type=simple
+User=vagrant
+Group=vagrant
+WorkingDirectory=$REDMINE_PATH
+Environment=RAILS_ENV=production
+ExecStart=$bundle_path exec bin/jobs start
+TimeoutSec=300
+ExecReload=/bin/kill -TSTP \${MAINPID}
+ExecStop=/bin/kill -INT \${MAINPID}
+RestartSec=1
+Restart=on-failure
+SyslogIdentifier=redmine_solid_queue
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl --no-pager enable redmine_solid_queue.service
+sudo systemctl --no-pager start redmine_solid_queue.service
+sudo systemctl --no-pager status redmine_solid_queue.service

@@ -1,0 +1,57 @@
+#!/bin/bash
+
+eval "$(~/.local/bin/mise activate bash --shims)"
+
+set -eux -o pipefail
+
+# https://blog.redmine.jp/articles/6_0/install/ubuntu24/
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends \
+  git \
+  subversion \
+  imagemagick \
+  fonts-takao-pgothic
+
+if ! test -d "$REDMINE_PATH"
+then
+  sudo install -m 755 -o $(id -un) -g $(id -gn) -d "$REDMINE_PATH"
+  git clone --branch=$REDMINE_VERSION https://github.com/redmine/redmine.git "$REDMINE_PATH"
+  cd "$REDMINE_PATH"
+  git show
+fi
+
+cd "$REDMINE_PATH"
+
+echo $RUBY_VERSION > .ruby-version
+
+cat <<EOF > config/database.yml
+production: &production
+  adapter: postgresql
+  user: postgres
+  database: redmine
+  encoding: utf8
+
+development:
+  <<: *production
+
+test:
+  <<: *production
+  database: redmine_test
+EOF
+
+cat <<EOF > Gemfile.local
+gem "puma"
+EOF
+
+bundle config set --local without 'development test'
+bundle
+bin/rails generate_secret_token
+bin/rails db:create db:migrate RAILS_ENV=production
+bin/rails redmine:load_default_data RAILS_ENV=production REDMINE_LANG=ja
+
+set +x
+cat <<EOF
+
+==============================
+Run: cd $(pwd) && bin/rails server -e production
+EOF

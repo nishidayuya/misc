@@ -1,0 +1,30 @@
+#!/bin/bash
+
+eval "$(~/.local/bin/mise activate bash --shims)"
+
+set -eux -o pipefail
+
+cd "$REDMINE_PATH"
+
+if ! grep -q solid_queue Gemfile.local
+then
+  echo 'gem "solid_queue"' >> Gemfile.local
+fi
+
+bundle install
+RAILS_ENV=production bin/rails solid_queue:install
+
+cat <<EOF > db/migrate/20250701000000_add_solid_queue_tables.rb
+class AddSolidQueueTables < ActiveRecord::Migration[7.2]
+  def change
+$(sed -e '1 d' -e '$ d' db/queue_schema.rb | sed -e 's|^  |    |')
+  end
+end
+EOF
+
+cp config/additional_environment.rb.example config/additional_environment.rb
+echo "config.active_job.queue_adapter = :solid_queue" >> config/additional_environment.rb
+
+RAILS_ENV=production bin/rails db:migrate
+
+sudo systemctl restart redmine.service
