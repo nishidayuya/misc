@@ -10,8 +10,15 @@ sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
   curl
 
+if test "${AQUA_INSTALLER_VERSION:-unspec}" = unspec
+then
+  version=master
+else
+  version="v$AQUA_INSTALLER_VERSION"
+fi
+
 # https://aquaproj.github.io/docs/products/aqua-installer#shell-script
-curl -sSfL https://raw.githubusercontent.com/aquaproj/aqua-installer/v3.1.1/aqua-installer |
+curl -sSfL https://raw.githubusercontent.com/aquaproj/aqua-installer/$version/aqua-installer |
   bash
 
 echo 'export PATH="${AQUA_ROOT_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/aquaproj-aqua}/bin:$PATH"' >> ~/.bashrc
