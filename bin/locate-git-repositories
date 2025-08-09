@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# Usage: locate-git-repositories
+#
+# Example: locate-git-repositories | xargs -n1 sh -eux -c 'nice git -C "$0" gc --aggressive'
+
+set -eu
+
+locate -0 -r '/.git$' |
+  xargs -0 -n1 sh -c '
+    if git -C "$0" rev-parse --is-inside-git-dir >/dev/null 2>/dev/null
+    then
+      echo "$0"
+    fi
+  '
