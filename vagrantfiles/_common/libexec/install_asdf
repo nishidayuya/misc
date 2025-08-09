@@ -1,0 +1,18 @@
+#!/bin/sh
+
+set -eux
+
+# https://asdf-vm.com/guide/getting-started.html
+
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends \
+  curl \
+  git
+
+curl -sL "https://github.com/asdf-vm/asdf/releases/download/v$ASDF_VERSION/asdf-v$ASDF_VERSION-linux-amd64.tar.gz" |
+  tar xfzO - asdf |
+  sudo tee /usr/local/bin/asdf > /dev/null
+sudo chmod a+x /usr/local/bin/asdf
+
+echo 'export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"' >> ~/.bash_profile
+echo '. <(asdf completion bash)' >> ~/.bashrc

@@ -1,13 +1,1 @@
-#!/bin/bash
-
-# https://mise.jdx.dev/getting-started.html
-
-set -eux -o pipefail
-
-sudo apt-get update
-sudo apt-get install -y --no-install-recommends \
-  curl
-
-curl https://mise.run | sh
-
-echo 'eval "$(~/.local/bin/mise activate bash)"' >> ~/.bashrc
+../../_common/libexec/install_mise

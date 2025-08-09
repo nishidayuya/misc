@@ -1,9 +1,1 @@
-#!/bin/bash
-
-# https://mise.jdx.dev/getting-started.html
-
-set -eux -o pipefail
-
-curl https://mise.run | sh
-
-echo 'eval "$(~/.local/bin/mise activate bash)"' >> ~/.bashrc
+../../_common/libexec/install_mise
