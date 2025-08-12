@@ -1,0 +1,19 @@
+#!/bin/sh
+
+set -eu
+
+cat <<EOF
+==================================================
+Login by vagrant user with password "vagrant".
+
+Open terminal by C-M-t .
+
+Run following to install Omakub:
+
+    $ wget -qO- https://omakub.org/install | bash
+
+Ask some questions and apply dialog.
+
+More information: https://omakub.org/
+==================================================
+EOF
