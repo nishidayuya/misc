@@ -1,0 +1,10 @@
+#!/bin/sh
+
+INCUS_USER="$USER"
+
+set -eux
+
+# https://incus-ja.readthedocs.io/ja/latest/installing/#installing-manage-access
+
+sudo adduser "$INCUS_USER" incus
+sudo adduser "$INCUS_USER" incus-admin

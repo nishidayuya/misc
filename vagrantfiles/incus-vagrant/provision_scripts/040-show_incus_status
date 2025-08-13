@@ -1,0 +1,13 @@
+#!/bin/sh
+
+set -eux
+
+sg incus-admin -c '
+  set -eux
+  incus network list
+  incus storage list
+  incus image list
+  incus list
+  incus profile list
+  incus profile show default
+'
