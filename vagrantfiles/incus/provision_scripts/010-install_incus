@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -eux
+
+# Debian on https://incus-ja.readthedocs.io/ja/latest/installing/#linux
+
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends \
+  dnsmasq
+sudo apt-get install -y --no-install-recommends \
+  -t bookworm-backports \
+  incus

@@ -1,0 +1,19 @@
+#!/bin/sh
+
+INCUS_DEVICE=/dev/sdb
+
+set -eux
+
+# https://incus-ja.readthedocs.io/ja/latest/reference/storage_btrfs/
+
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends btrfs-progs
+
+sudo systemctl stop incus.socket
+sudo systemctl stop incus.service
+sudo umount "$INCUS_DEVICE" || true
+sudo rm -rf /var/lib/incus
+sudo systemctl restart incus.socket
+sudo dd if=/dev/zero of="$INCUS_DEVICE" bs=1M count=1 # clear
+sg incus-admin -c "incus admin init --auto --storage-backend=btrfs --storage-create-device='$INCUS_DEVICE'"
+sudo systemctl restart incus.service
