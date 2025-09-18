@@ -1,0 +1,6 @@
+#!/bin/sh
+
+set -eux
+
+# https://gitlab.com/catalyst-it/devtools/vagrant-lxd/-/tree/v0.7.1?ref_type=tags#from-rubygems
+vagrant plugin install vagrant-lxd
