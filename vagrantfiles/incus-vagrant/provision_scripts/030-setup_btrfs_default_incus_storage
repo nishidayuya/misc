@@ -15,5 +15,12 @@ sudo umount "$INCUS_DEVICE" || true
 sudo rm -rf /var/lib/incus
 sudo systemctl restart incus.socket
 sudo dd if=/dev/zero of="$INCUS_DEVICE" bs=1M count=1 # clear
-sg incus-admin -c "incus admin init --auto --storage-backend=btrfs --storage-create-device='$INCUS_DEVICE'"
+sg incus-admin -c "
+  incus admin init \
+    --auto \
+    --network-address=127.0.0.1 \
+    --network-port=8443 \
+    --storage-backend=btrfs \
+    --storage-create-device='$INCUS_DEVICE'
+"
 sudo systemctl restart incus.service
