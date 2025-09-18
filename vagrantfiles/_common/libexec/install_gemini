@@ -1,0 +1,8 @@
+#!/bin/bash
+
+eval "$(~/.local/bin/mise activate bash --shims)"
+
+set -eux -o pipefail
+
+# https://github.com/google-gemini/gemini-cli/tree/v0.1.21?tab=readme-ov-file#install-globally-with-npm
+npm install --global @google/gemini-cli

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+eval "$(~/.local/bin/mise activate bash --shims)"
+
+set -eux -o pipefail
+
+mise install "node@lts"
+mise use --global "node@lts"
+mise ls
