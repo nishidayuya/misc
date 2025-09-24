@@ -49,12 +49,15 @@ EOF
 '
 git cococo bundle
 
-sed -i -e 's/TODO: //' README.md
+git checkout -b implement
+git cococo sed -i -e 's/TODO: //' README.md
 rake gem
 rake pdf
 
 ls -lh ./ pkg/ pdf/
 pwd
+git status
+git branch
 
 set +x
 cat <<EOF
