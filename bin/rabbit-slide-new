@@ -64,4 +64,8 @@ cat <<EOF
 PDFをコミットする際は以下
 
 git cococo sh -eux -c 'bundle exec rake pdf && git add -f pdf/*.pdf'
+
+タグを打つときは以下
+
+bundle exec rake tag
 EOF
