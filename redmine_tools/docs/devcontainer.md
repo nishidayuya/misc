@@ -16,6 +16,11 @@ Redmine API を操作する Ruby 製 CLI ツール開発のための Devcontaine
 - **Post Create Command**: `npm install -g @google/gemini-cli` を実行。
 - **環境変数**: `GEMINI_API_KEY` を定義。
 
+#### 設定のマウント
+ホスト側の Gemini 設定をコンテナ内でも共有するため、以下のディレクトリをマウントします。
+- **マウント先**: `/home/vscode/.gemini`
+- **マウント元**: `${localEnv:GEMINI_CONFIG_DIR}` を優先し、未設定の場合は `${localEnv:HOME}/.gemini` を使用。
+
 ### 環境変数
 - `REDMINE_URL`: 接続先 Redmine の URL
 - `REDMINE_API_KEY`: Redmine API アクセスキー
@@ -25,6 +30,7 @@ Redmine API を操作する Ruby 製 CLI ツール開発のための Devcontaine
 
 1. **`.devcontainer/` の作成**:
    - `devcontainer.json` を作成し、Ruby 3.4 イメージ、Node.js Feature、Gemini CLI インストール処理を定義する。
+   - `mounts` 設定を追加して、Gemini の設定ディレクトリをリンクする。
 2. **`.env` ファイルの用意**:
    - `REDMINE_URL`, `REDMINE_API_KEY`, `GEMINI_API_KEY` を設定する。
 3. **CLIツールの実装**:
@@ -33,12 +39,9 @@ Redmine API を操作する Ruby 製 CLI ツール開発のための Devcontaine
 ## 3. 実行・テスト方法
 
 ```bash
-# Gemini CLI の動作確認
-gemini --version
+# Gemini CLI の動作確認（マウントされた設定が反映されているか）
+gemini config list
 
 # Ruby のバージョン確認
 ruby --version
-
-# コマンドの実行例 (仮)
-REDMINE_URL=https://redmine.example.com REDMINE_API_KEY=your_key ruby exe/redmine-tools list
 ```
