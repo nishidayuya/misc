@@ -19,7 +19,8 @@ Redmine API を操作する Ruby 製 CLI ツール開発のための Devcontaine
 #### 設定のマウント
 ホスト側の Gemini 設定をコンテナ内でも共有するため、以下のディレクトリをマウントします。
 - **マウント先**: `/home/vscode/.gemini`
-- **マウント元**: `${localEnv:GEMINI_CONFIG_DIR}` を優先し、未設定の場合は `${localEnv:HOME}/.gemini` を使用。
+- **マウント元**: `${localEnv:HOME}/.gemini`
+  - ※ 異なるディレクトリを使用したい場合は、ホスト側で `~/.gemini` をシンボリックリンクにするか、`.devcontainer/devcontainer.json` の `source` を手動で書き換えてください。
 
 ### 環境変数
 - `REDMINE_URL`: 接続先 Redmine の URL

@@ -7,7 +7,7 @@
   "postCreateCommand": "npm install -g @google/gemini-cli",
   "mounts": [
     {
-      "source": "${localEnv:GEMINI_CONFIG_DIR:-${localEnv:HOME}/.gemini}",
+      "source": "${localEnv:HOME}/.gemini",
       "target": "/home/vscode/.gemini",
       "type": "bind",
       "consistency": "cached"
