@@ -1,0 +1,144 @@
+#! /usr/bin/env ruby
+
+require 'optparse'
+require 'net/http'
+require 'uri'
+require 'json'
+require 'date'
+
+# --- 設定と引数の解析 ---
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: redmine_rollover PROJECT_URL [options]"
+
+  opts.on("--redmine-api-key KEY", "Redmine API Key") do |v|
+    options[:api_key] = v
+  end
+  opts.on("--current-month YYYY-MM", "Current version name (default: this month)") do |v|
+    options[:current_month] = v
+  end
+  opts.on("--previous-month YYYY-MM", "Previous version name (default: last month)") do |v|
+    options[:previous_month] = v
+  end
+end.parse!
+
+project_url_str = ARGV[0]
+if project_url_str.nil?
+  puts "Error: Project URL is required as the first argument."
+  exit 1
+end
+
+# URL の解析 (例: https://redmine.example.com/projects/my-project)
+begin
+  project_uri = URI.parse(project_url_str)
+  base_url = "#{project_uri.scheme}://#{project_uri.host}#{":#{project_uri.port}" if project_uri.port != project_uri.default_port}"
+  
+  # パスの最後をプロジェクト識別子として抽出
+  project_id = project_uri.path.split('/').last
+  if project_id.nil? || project_id.empty?
+    raise "Could not extract project identifier from URL path."
+  end
+rescue => e
+  puts "Error parsing project URL: #{e.message}"
+  exit 1
+end
+
+api_key = options[:api_key] || ENV['REDMINE_API_KEY']
+if api_key.nil?
+  puts "Error: Redmine API Key is required. Use --redmine-api-key or REDMINE_API_KEY environment variable."
+  exit 1
+end
+
+# --- 月の算出 ---
+current_month = options[:current_month] || Date.today.strftime("%Y-%m")
+
+if options[:previous_month]
+  previous_month = options[:previous_month]
+else
+  # current_month をパースして 1 ヶ月戻す
+  begin
+    year, month = current_month.split('-').map(&:to_i)
+    current_date = Date.new(year, month, 1)
+    previous_month = (current_date << 1).strftime("%Y-%m")
+  rescue => e
+    puts "Error calculating previous month: #{e.message}"
+    exit 1
+  end
+end
+
+puts "Project: #{project_id} (Base URL: #{base_url})"
+puts "Current Month:  #{current_month}"
+puts "Previous Month: #{previous_month}"
+
+# --- API 共通リクエストメソッド ---
+def redmine_api(url, method, api_key, body = nil)
+  uri = URI.parse(url)
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = (uri.scheme == 'https')
+  
+  request = case method
+            when :get then Net::HTTP::Get.new(uri)
+            when :put then Net::HTTP::Put.new(uri)
+            end
+  
+  request['X-Redmine-API-Key'] = api_key
+  request['Content-Type'] = 'application/json'
+  request.body = body.to_json if body
+
+  response = http.request(request)
+  
+  unless response.is_a?(Net::HTTPSuccess)
+    puts "API Error: #{method.upcase} #{url} returned #{response.code}"
+    puts response.body
+    exit 1
+  end
+  
+  JSON.parse(response.body) rescue {}
+end
+
+# --- 1. バージョンの特定 ---
+puts "Fetching versions..."
+versions_url = "#{base_url}/projects/#{project_id}/versions.json"
+versions_data = redmine_api(versions_url, :get, api_key)
+versions = versions_data['versions'] || []
+
+old_version = versions.find { |v| v['name'] == previous_month }
+new_version = versions.find { |v| v['name'] == current_month }
+
+if old_version.nil?
+  puts "Error: Previous version '#{previous_month}' not found in project."
+  exit 1
+end
+
+if new_version.nil?
+  puts "Error: Current version '#{current_month}' not found in project. Please create it first."
+  exit 1
+end
+
+old_version_id = old_version['id']
+new_version_id = new_version['id']
+
+# --- 2. チケットの移行 ---
+puts "Fetching open issues for '#{previous_month}'..."
+issues_url = "#{base_url}/issues.json?project_id=#{project_id}&fixed_version_id=#{old_version_id}&status_id=open&limit=100"
+issues_data = redmine_api(issues_url, :get, api_key)
+issues = issues_data['issues'] || []
+
+if issues.empty?
+  puts "No open issues to move."
+else
+  puts "Moving #{issues.size} issues to '#{current_month}'..."
+  issues.each do |issue|
+    print "Moving issue ##{issue['id']}... "
+    update_url = "#{base_url}/issues/#{issue['id']}.json"
+    redmine_api(update_url, :put, api_key, { issue: { fixed_version_id: new_version_id } })
+    puts "Done."
+  end
+end
+
+# --- 3. 先月のバージョンを閉じる ---
+puts "Closing version '#{previous_month}'..."
+close_version_url = "#{base_url}/versions/#{old_version_id}.json"
+redmine_api(close_version_url, :put, api_key, { version: { status: 'closed' } })
+
+puts "Success: Rollover from '#{previous_month}' to '#{current_month}' completed."
