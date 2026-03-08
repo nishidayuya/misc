@@ -12,17 +12,17 @@ Redmine の月次運用（チケットの次月移行と旧バージョンのク
 4.  **新バージョンの作成（オプション）**: 必要に応じて、再来月のバージョンを先行して作成します。
 
 ## 3. 技術スタック
-- **言語**: Python 3.10+
-- **ライブラリ**: `python-redmine` (Redmine REST API クライアント)
-- **設定管理**: `.env` ファイル (python-dotenv)
+- **言語**: Ruby 3.x
+- **ライブラリ**: `redmine_client` (Redmine REST API クライアント), `dotenv`
+- **設定管理**: `.env` ファイル
 
-## 4. スクリプト構成案 (scripts/redmine_rollover.py)
+## 4. スクリプト構成案 (scripts/redmine_rollover.rb)
 
 ### 4.1. 接続設定
 `.env` ファイルから `REDMINE_URL` と `REDMINE_API_KEY` を読み込みます。
 
 ### 4.2. 実装ロジック
-- `datetime` モジュールを使用して、先月（`last_month_version`）と今月（`this_month_version`）の文字列を生成。
+- `Date` クラスを使用して、先月（`last_month_version`）と今月（`this_month_version`）の文字列を生成。
 - Redmine API で対象プロジェクトの全バージョンを取得。
 - `last_month_version` に属するチケットを `this_month_version` に一括更新。
 - `last_month_version` オブジェクトのステータスを `closed` に更新。
@@ -30,8 +30,9 @@ Redmine の月次運用（チケットの次月移行と旧バージョンのク
 ## 5. 実行環境のセットアップ
 1.  依存ライブラリのインストール:
     ```bash
-    pip install python-redmine python-dotenv
+    gem install redmine_client dotenv
     ```
+    または `Gemfile` を作成して `bundle install`
 2.  `.env` ファイルの作成:
     ```bash
     cp .env.example .env
@@ -39,6 +40,6 @@ Redmine の月次運用（チケットの次月移行と旧バージョンのク
     ```
 
 ## 6. 今後のステップ
-1.  [ ] Python スクリプトのプロトタイプ作成
+1.  [ ] Ruby スクリプトのプロトタイプ作成
 2.  [ ] テスト用プロジェクトでの動作確認
 3.  [ ] GitHub Actions 等による定期実行（Cron）の設定
