@@ -18,36 +18,42 @@ Redmine の月次運用（チケットの次月移行と旧バージョンのク
     - `json`: API レスポンスのパースおよびリクエストボディの生成
     - `date`: 日付操作（前月・今月の算出）
 
-## 4. プログラム仕様 (scripts/redmine_rollover)
+## 4. プログラム仕様 (redmine_rollover)
 
-### 4.1. 接続設定の取得と優先順位
-設定は以下の優先順位で取得します。`.env` ファイルの自動読み込みは行いません。
-1.  コマンドラインオプション (`--redmine-url`, `--redmine-api-key`)
-2.  環境変数 (`REDMINE_URL`, `REDMINE_API_KEY`)
+### 4.1. 引数と設定の取得
+プログラムは以下の形式で実行します。
+
+```bash
+./redmine_rollover PROJECT_URL [options]
+```
+
+- **第一引数 (必須)**: Redmine のプロジェクトURL (例: `https://redmine.example.com/projects/my-project`)
+    - プログラム内でこの URL をパースし、「ベース URL」と「プロジェクト識別子」を抽出します。
+- **Redmine API キー**: 以下の優先順位で取得します。
+    1.  コマンドラインオプション (`--redmine-api-key`)
+    2.  環境変数 (`REDMINE_API_KEY`)
 
 ### 4.2. プログラムオプション
-- `-p, --project IDENTIFIER`: 対象のプロジェクト識別子（必須）
-- `--redmine-url URL`: Redmine のベースURL
 - `--redmine-api-key KEY`: Redmine API キー
 
 ### 4.3. 実装ロジック詳細
 - `#! /usr/bin/env ruby` の Shebang を付与。
 - `+x` 権限を付与し、直接実行可能にする。
+- URL の解析: `URI.parse` を使用して、ホスト名部分（ベースURL）とパスの末尾（プロジェクト識別子）を抽出。
 - API 通信：
     1.  `GET /projects/:project_id/versions.json` で、名前が `YYYY-MM`（先月と今月）のバージョンIDを特定。
-    2.  `GET /issues.json?fixed_version_id=:old_id&status_id=open` で移行対象の未完了チケットを取得。
+    2.  `GET /issues.json?project_id=:project_id&fixed_version_id=:old_id&status_id=open` で移行対象の未完了チケットを取得。
     3.  `PUT /issues/:issue_id.json` でチケットの `fixed_version_id` を今月のIDに更新。
     4.  `PUT /versions/:old_id.json` で前月バージョンの `status` を `closed` に変更。
 
 ## 5. 実行方法
 ```bash
-# 環境変数を使用する場合
-export REDMINE_URL=https://redmine.example.com
-export REDMINE_API_KEY=your_api_key
-./redmine_rollover --project my-project
+# プロジェクトURLを第一引数に指定
+./redmine_rollover https://redmine.example.com/projects/my-project --redmine-api-key your_api_key
 
-# 引数で直接指定する場合
-./redmine_rollover --project my-project --redmine-url https://redmine.example.com --redmine-api-key your_api_key
+# APIキーを環境変数で指定する場合
+export REDMINE_API_KEY=your_api_key
+./redmine_rollover https://redmine.example.com/projects/my-project
 ```
 
 ## 6. 今後のステップ
