@@ -70,4 +70,3 @@ export REDMINE_API_KEY=your_api_key
 ## 6. 今後のステップ
 1.  [ ] Ruby スクリプト `redmine_rollover` の作成
 2.  [ ] テスト用プロジェクトでの動作確認
-3.  [ ] 定期実行（Cron/CI）の設定
