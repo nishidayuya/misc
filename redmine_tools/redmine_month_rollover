@@ -7,7 +7,7 @@ require 'json'
 require 'date'
 
 # --- 設定と引数の解析 ---
-options = {}
+options = { quiet: false }
 OptionParser.new do |opts|
   opts.banner = "Usage: redmine_month_rollover PROJECT_URL [options]"
 
@@ -20,7 +20,14 @@ OptionParser.new do |opts|
   opts.on("--previous-month YYYY-MM", "Previous version name (default: last month)") do |v|
     options[:previous_month] = v
   end
+  opts.on("--quiet", "Suppress non-error output") do
+    options[:quiet] = true
+  end
 end.parse!
+
+def log(msg, options)
+  puts msg unless options[:quiet]
+end
 
 project_url_str = ARGV[0]
 if project_url_str.nil?
@@ -66,9 +73,9 @@ else
   end
 end
 
-puts "Project: #{project_id} (Base URL: #{base_url})"
-puts "Current Month:  #{current_month}"
-puts "Previous Month: #{previous_month}"
+log "Project: #{project_id} (Base URL: #{base_url})", options
+log "Current Month:  #{current_month}", options
+log "Previous Month: #{previous_month}", options
 
 # --- API 共通リクエストメソッド ---
 def redmine_api(url, method, api_key, body = nil)
@@ -97,7 +104,7 @@ def redmine_api(url, method, api_key, body = nil)
 end
 
 # --- 1. バージョンの特定 ---
-puts "Fetching versions..."
+log "Fetching versions...", options
 versions_url = "#{base_url}/projects/#{project_id}/versions.json"
 versions_data = redmine_api(versions_url, :get, api_key)
 versions = versions_data['versions'] || []
@@ -119,26 +126,25 @@ old_version_id = old_version['id']
 new_version_id = new_version['id']
 
 # --- 2. チケットの移行 ---
-puts "Fetching open issues for '#{previous_month}' (sorted by updated_on:asc)..."
+log "Fetching open issues for '#{previous_month}' (sorted by updated_on:asc)...", options
 issues_url = "#{base_url}/issues.json?project_id=#{project_id}&fixed_version_id=#{old_version_id}&status_id=open&sort=updated_on:asc&limit=100"
 issues_data = redmine_api(issues_url, :get, api_key)
 issues = issues_data['issues'] || []
 
 if issues.empty?
-  puts "No open issues to move."
+  log "No open issues to move.", options
 else
-  puts "Moving #{issues.size} issues to '#{current_month}'..."
+  log "Moving #{issues.size} issues to '#{current_month}'...", options
   issues.each do |issue|
-    print "Moving issue ##{issue['id']}... "
+    log "Moving issue ##{issue['id']}... ", options
     update_url = "#{base_url}/issues/#{issue['id']}.json"
     redmine_api(update_url, :put, api_key, { issue: { fixed_version_id: new_version_id } })
-    puts "Done."
   end
 end
 
 # --- 3. 先月のバージョンを閉じる ---
-puts "Closing version '#{previous_month}'..."
+log "Closing version '#{previous_month}'...", options
 close_version_url = "#{base_url}/versions/#{old_version_id}.json"
 redmine_api(close_version_url, :put, api_key, { version: { status: 'closed' } })
 
-puts "Success: Rollover from '#{previous_month}' to '#{current_month}' completed."
+log "Success: Rollover from '#{previous_month}' to '#{current_month}' completed.", options

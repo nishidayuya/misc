@@ -40,6 +40,7 @@ Redmine の月次運用（チケットの次月移行と旧バージョンのク
 - `--redmine-api-key KEY`: Redmine API キー
 - `--current-month YYYY-MM`: 「今月」のバージョン名（デフォルト: 実行時の年月）
 - `--previous-month YYYY-MM`: 「先月」のバージョン名（デフォルト: 今月の前の月）
+- `--quiet`: 正常終了時の出力を抑制（エラー時のみ出力）
 
 ### 4.3. 実装ロジック詳細
 - `#! /usr/bin/env ruby` の Shebang を付与。
