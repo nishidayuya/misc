@@ -119,8 +119,8 @@ old_version_id = old_version['id']
 new_version_id = new_version['id']
 
 # --- 2. チケットの移行 ---
-puts "Fetching open issues for '#{previous_month}'..."
-issues_url = "#{base_url}/issues.json?project_id=#{project_id}&fixed_version_id=#{old_version_id}&status_id=open&limit=100"
+puts "Fetching open issues for '#{previous_month}' (sorted by updated_on:asc)..."
+issues_url = "#{base_url}/issues.json?project_id=#{project_id}&fixed_version_id=#{old_version_id}&status_id=open&sort=updated_on:asc&limit=100"
 issues_data = redmine_api(issues_url, :get, api_key)
 issues = issues_data['issues'] || []
 

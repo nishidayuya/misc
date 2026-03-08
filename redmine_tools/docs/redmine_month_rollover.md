@@ -50,7 +50,7 @@ Redmine の月次運用（チケットの次月移行と旧バージョンのク
 - URL の解析: `URI.parse` を使用して、ホスト名部分（ベースURL）とパスの末尾（プロジェクト識別子）を抽出。
 - API 通信：
     1.  `GET /projects/:project_id/versions.json` で、名前が `previous_month` と `current_month` のバージョンIDを特定。
-    2.  `GET /issues.json?project_id=:project_id&fixed_version_id=:old_id&status_id=open` で移行対象の未完了チケットを取得。
+    2.  `GET /issues.json?project_id=:project_id&fixed_version_id=:old_id&status_id=open&sort=updated_on:asc` で移行対象の未完了チケットを更新日時の古い順に取得。
     3.  `PUT /issues/:issue_id.json` でチケットの `fixed_version_id` を今月のIDに更新。
     4.  `PUT /versions/:old_id.json` で `previous_month` バージョンの `status` を `closed` に変更。
 
