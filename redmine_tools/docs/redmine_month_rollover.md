@@ -13,31 +13,37 @@ Redmine の月次運用（チケットの次月移行と旧バージョンのク
 
 ## 3. 技術スタック
 - **言語**: Ruby 3.x
-- **ライブラリ**: `redmine_client` (Redmine REST API クライアント), `dotenv`
-- **設定管理**: `.env` ファイル
+- **標準ライブラリ**: `optparse` (引数解析), `json`, `net/http`
+- **外部ライブラリ**: （必要に応じて）`rest-client` 等
 
 ## 4. スクリプト構成案 (scripts/redmine_rollover.rb)
 
-### 4.1. 接続設定
-`.env` ファイルから `REDMINE_URL` と `REDMINE_API_KEY` を読み込みます。
+### 4.1. 接続設定の取得
+以下の優先順位で設定を取得します。
+1.  コマンドラインオプション (`--redmine-url`, `--redmine-api-key`)
+2.  環境変数 (`REDMINE_URL`, `REDMINE_API_KEY`)
+
+※ `.env` ファイルの自動読み込みは行いません。
 
 ### 4.2. 実装ロジック
-- `Date` クラスを使用して、先月（`last_month_version`）と今月（`this_month_version`）の文字列を生成。
-- Redmine API で対象プロジェクトの全バージョンを取得。
-- `last_month_version` に属するチケットを `this_month_version` に一括更新。
-- `last_month_version` オブジェクトのステータスを `closed` に更新。
+- `Date.today` を基準に、先月（`YYYY-MM`）と今月（`YYYY-MM`）の文字列を生成します。
+- Redmine API を使用して以下の操作を行います：
+    1.  プロジェクト内の全バージョンを取得。
+    2.  先月のバージョンIDと今月のバージョンIDを特定。
+    3.  先月のバージョンに紐付いているチケット（Issue）の一覧を取得。
+    4.  それらのチケットの `fixed_version_id` を今月のバージョンIDに更新。
+    5.  先月のバージョンのステータスを `closed` に更新。
 
-## 5. 実行環境のセットアップ
-1.  依存ライブラリのインストール:
-    ```bash
-    gem install redmine_client dotenv
-    ```
-    または `Gemfile` を作成して `bundle install`
-2.  `.env` ファイルの作成:
-    ```bash
-    cp .env.example .env
-    # REDMINE_URL と REDMINE_API_KEY を編集
-    ```
+## 5. 実行方法
+```bash
+# 環境変数を使用する場合
+export REDMINE_URL=https://redmine.example.com
+export REDMINE_API_KEY=your_api_key
+ruby scripts/redmine_rollover.rb
+
+# 引数で直接指定する場合
+ruby scripts/redmine_rollover.rb --redmine-url https://redmine.example.com --redmine-api-key your_api_key
+```
 
 ## 6. 今後のステップ
 1.  [ ] Ruby スクリプトのプロトタイプ作成
