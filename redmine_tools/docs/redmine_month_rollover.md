@@ -21,13 +21,13 @@ Redmine の月次運用（チケットの次月移行と旧バージョンのク
     - `json`: API レスポンスのパースおよびリクエストボディの生成
     - `date`: 日付操作（前月・今月の算出）
 
-## 4. プログラム仕様 (redmine_rollover)
+## 4. プログラム仕様 (redmine_month_rollover)
 
 ### 4.1. 引数と設定の取得
 プログラムは以下の形式で実行します。
 
 ```bash
-./redmine_rollover PROJECT_URL [options]
+./redmine_month_rollover PROJECT_URL [options]
 ```
 
 - **第一引数 (必須)**: Redmine のプロジェクトURL (例: `https://redmine.example.com/projects/my-project`)
@@ -57,16 +57,16 @@ Redmine の月次運用（チケットの次月移行と旧バージョンのク
 ## 5. 実行方法
 ```bash
 # プロジェクトURLを第一引数に指定
-./redmine_rollover https://redmine.example.com/projects/my-project --redmine-api-key your_api_key
+./redmine_month_rollover https://redmine.example.com/projects/my-project --redmine-api-key your_api_key
 
 # 特定の月を指定して実行する場合
-./redmine_rollover https://redmine.example.com/projects/my-project --current-month 2024-04 --previous-month 2024-03
+./redmine_month_rollover https://redmine.example.com/projects/my-project --current-month 2024-04 --previous-month 2024-03
 
 # APIキーを環境変数で指定する場合
 export REDMINE_API_KEY=your_api_key
-./redmine_rollover https://redmine.example.com/projects/my-project
+./redmine_month_rollover https://redmine.example.com/projects/my-project
 ```
 
 ## 6. 今後のステップ
-1.  [ ] Ruby スクリプト `redmine_rollover` の作成
+1.  [ ] Ruby スクリプト `redmine_month_rollover` の作成
 2.  [ ] テスト用プロジェクトでの動作確認

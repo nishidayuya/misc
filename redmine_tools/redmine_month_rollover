@@ -9,7 +9,7 @@ require 'date'
 # --- 設定と引数の解析 ---
 options = {}
 OptionParser.new do |opts|
-  opts.banner = "Usage: redmine_rollover PROJECT_URL [options]"
+  opts.banner = "Usage: redmine_month_rollover PROJECT_URL [options]"
 
   opts.on("--redmine-api-key KEY", "Redmine API Key") do |v|
     options[:api_key] = v
