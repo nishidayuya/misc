@@ -1,0 +1,116 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+require 'net/http'
+require 'uri'
+require 'json'
+require 'date'
+
+# 設定の取得 (引数優先、次に環境変数)
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: redmine_rollover [options]"
+
+  opts.on("-p", "--project IDENTIFIER", "Redmine project identifier (required)") do |v|
+    options[:project] = v
+  end
+  opts.on("--redmine-url URL", "Redmine base URL") do |v|
+    options[:url] = v
+  end
+  opts.on("--redmine-api-key KEY", "Redmine API Key") do |v|
+    options[:api_key] = v
+  end
+end.parse!
+
+redmine_url = options[:url] || ENV['REDMINE_URL']
+api_key = options[:api_key] || ENV['REDMINE_API_KEY']
+project_id = options[:project]
+
+if redmine_url.nil? || api_key.nil? || project_id.nil?
+  puts "Error: Project ID, Redmine URL and API Key are required."
+  puts "Use --project, --redmine-url, --redmine-api-key or environment variables."
+  exit 1
+end
+
+# 日付の計算
+today = Date.today
+this_month = today.strftime("%Y-%m")
+last_month = (today << 1).strftime("%Y-%m")
+
+puts "Rolling over versions for project: #{project_id}"
+puts "Target: #{last_month} -> #{this_month}"
+
+def request(uri, method, api_key, body = nil)
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = (uri.scheme == 'https')
+  
+  case method
+  when :get
+    req = Net::HTTP::Get.new(uri)
+  when :put
+    req = Net::HTTP::Put.new(uri)
+  end
+
+  req['X-Redmine-API-Key'] = api_key
+  req['Content-Type'] = 'application/json'
+  req.body = body.to_json if body
+
+  response = http.request(req)
+  
+  unless response.is_a?(Net::HTTPSuccess)
+    puts "Error: API request failed (#{response.code})"
+    puts response.body
+    exit 1
+  end
+  
+  JSON.parse(response.body) rescue {}
+end
+
+base_uri = URI.parse(redmine_url.chomp('/'))
+
+# 1. バージョンの特定
+versions_uri = URI.parse("#{base_uri}/projects/#{project_id}/versions.json")
+versions_data = request(versions_uri, :get, api_key)
+versions = versions_data['versions'] || []
+
+old_version = versions.find { |v| v['name'] == last_month }
+new_version = versions.find { |v| v['name'] == this_month }
+
+if old_version.nil?
+  puts "Error: Version '#{last_month}' not found."
+  exit 1
+end
+
+if new_version.nil?
+  puts "Error: Version '#{this_month}' not found. Please create it first."
+  exit 1
+end
+
+old_version_id = old_version['id']
+new_version_id = new_version['id']
+
+# 2. チケットの移行 (未完了のチケットを対象)
+# status_id=open はデフォルトの挙動だが明示
+issues_uri = URI.parse("#{base_uri}/issues.json?project_id=#{project_id}&fixed_version_id=#{old_version_id}&status_id=open&limit=100")
+issues_data = request(issues_uri, :get, api_key)
+issues = issues_data['issues'] || []
+
+if issues.empty?
+  puts "No open issues found in version '#{last_month}'."
+else
+  puts "Moving #{issues.size} issues to '#{this_month}'..."
+  issues.each do |issue|
+    issue_id = issue['id']
+    update_uri = URI.parse("#{base_uri}/issues/#{issue_id}.json")
+    request(update_uri, :put, api_key, { issue: { fixed_version_id: new_version_id } })
+    print "."
+  end
+  puts "\nIssues moved."
+end
+
+# 3. 先月のバージョンを閉じる
+puts "Closing version '#{last_month}'..."
+update_version_uri = URI.parse("#{base_uri}/versions/#{old_version_id}.json")
+request(update_version_uri, :put, api_key, { version: { status: 'closed' } })
+
+puts "Success: Rollover completed."
