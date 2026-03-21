@@ -1,6 +1,9 @@
 AllCops:
   NewCops: enable
 
+Metrics:
+  Enabled: false
+
 # We adopt "Semantic Block".
 # In "Semantic Block" way, "{...}" block and "do ... end" block are
 # NOT same semantics.
@@ -17,10 +20,6 @@ Style/BlockDelimiters:
 # For low indent level.
 Style/ClassAndModuleChildren:
   EnforcedStyle: compact
-
-# From number of terminal lines - 2 ("def" line and "end" line).
-Metrics/MethodLength:
-  Max: 22
 
 # "if !a" is better than "unless a", we think.
 # Because condition(s) often will be appended another codition(s).
@@ -54,6 +53,9 @@ Lint/UselessAccessModifier:
 Style/LambdaCall:
   EnforcedStyle: braces
 
+Style/RescueStandardError:
+  EnforcedStyle: implicit
+
 # Less diff to last line changes.
 Style/TrailingCommaInArguments:
   EnforcedStyleForMultiline: consistent_comma
@@ -65,35 +67,13 @@ Style/TrailingCommaInHashLiteral:
 Style/TrailingCommaInBlockArgs:
   Enabled: true
 
-# Not used.
-Style/FrozenStringLiteralComment:
-  EnforcedStyle: never
-
-Metrics/BlockLength:
-  ExcludedMethods:
-    - data # Data driven test data on test-unit.gem
-    - test # Test method on test-unit.gem
-    - sub_test_case # Test grouping on test-unit.gem
-
 # Distinguish hash from functional blocks.
 Layout/SpaceInsideHashLiteralBraces:
   EnforcedStyle: no_space
 
-# Write "return" is NOT redundant.
-# Because if not "return", we don't know specified return value or
-# last evaluated value.
-# Sometimes we don't write YARD @return
-# (private methods, method by define_method, and so on)
-Style/RedundantReturn:
-  Enabled: false
-
 # REPL (eg. irb, pry, ...) friendly style.
 Layout/DotPosition:
   EnforcedStyle: trailing
-
-# We can care it. At own risk.
-Style/MutableConstant:
-  Enabled: false
 
 Naming/MethodParameterName:
   AllowedNames:
