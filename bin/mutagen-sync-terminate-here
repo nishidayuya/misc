@@ -1,0 +1,39 @@
+#!/usr/bin/env ruby
+
+USAGE = <<~USAGE
+  usage: #{File.basename(Process.argv0)} target_host
+USAGE
+
+require "pathname"
+
+destination_host = ARGV.shift
+
+if !destination_host
+  $stderr.puts(USAGE)
+  exit(1)
+end
+
+MUTAGEN_SYNC_LIST_SEPARATOR = "--------------------------------------------------------------------------------"
+
+home_path = Pathname(ENV.fetch("HOME"))
+topsrc_path = Pathname(`git rev-parse --show-toplevel`.chomp)
+relative_topsrc_path = topsrc_path.relative_path_from(home_path)
+destination_host_and_path = "#{destination_host}:#{relative_topsrc_path}"
+
+mutagen_sync_list = `mutagen sync list`.split(MUTAGEN_SYNC_LIST_SEPARATOR)
+destination_mutagen_list = mutagen_sync_list.grep(/^(?:Alpha|Beta):\s*URL:\s*#{Regexp.escape(destination_host_and_path)}$/m)
+case destination_mutagen_list.length
+when 0
+  $stderr.puts("not found: host_and_path=#{destination_host_and_path.inspect}")
+  exit(1)
+when (2..)
+  $stderr.puts(<<~EOS)
+    multiple matched:
+
+    #{destination_mutagen_list.join(MUTAGEN_SYNC_LIST_SEPARATOR)}
+  EOS
+  exit(1)
+end
+
+mutagen_sync_identifier = destination_mutagen_list.first[/(?<=Identifier: ).*/]
+exec(*%W[mutagen sync terminate #{mutagen_sync_identifier}])

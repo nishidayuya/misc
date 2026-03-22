@@ -1,0 +1,36 @@
+#!/usr/bin/env ruby
+
+USAGE = <<~USAGE
+  usage: #{File.basename(Process.argv0)} target_host [mutagen sync create args...]
+USAGE
+
+require "pathname"
+
+destination_host = ARGV.shift
+
+if !destination_host
+  $stderr.puts(USAGE)
+  exit(1)
+end
+
+home_path = Pathname(ENV.fetch("HOME"))
+topsrc_path = Pathname(`git rev-parse --show-toplevel`.chomp)
+relative_topsrc_path = topsrc_path.relative_path_from(home_path)
+destination_host_and_path = "#{destination_host}:#{relative_topsrc_path}"
+
+system("ssh", destination_host, "mkdir", "-pv", relative_topsrc_path.parent.to_s, exception: true)
+
+command = [
+  *%w[rsync -avH --progress --delete-after],
+  "#{topsrc_path}/", # slashed path
+  "#{destination_host_and_path}/",
+]
+system(*command, exception: true)
+
+command = [
+  *%w[mutagen sync create],
+  *ARGV,
+  topsrc_path.to_s,
+  destination_host_and_path,
+]
+exec(*command)
