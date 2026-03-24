@@ -1,0 +1,61 @@
+#!/usr/bin/env ruby
+
+=begin
+aggregate banchmark-driver's output
+
+benchmark-driver detauls here: https://github.com/ruby/ruby/blob/v4.0.2/benchmark/README.md
+
+usage: benchmark-driver-aggregate result1.t result2.t
+=end
+
+def determine_current_filename(argf_filename)
+  argf_filename == "-" ? "<stdin-#{@stdin_number += 1}>" : argf_filename
+end
+
+results = Hash.new do |h, key|
+  h[key] = {}
+end
+@stdin_number = 0
+current_filename = nil
+filenames = []
+max_seconds_lengths = {}
+ARGF.each_line(chomp: true) do |l|
+  case l
+  when /\ACalculating -+\z/
+    current_filename = determine_current_filename(ARGF.filename)
+    max_seconds_lengths[current_filename] = current_filename.length
+    filenames << current_filename
+  when /\AComparison:/
+    current_filename = nil
+  when /\A\s*\z/
+    # nop
+  else
+    next if !current_filename
+
+    benchmark_name, _, _, _, _, _times_string, _in_string, s_seconds, * = *l.strip.split(/\s+/)
+    results[benchmark_name][current_filename] = s_seconds
+    max_seconds_lengths[current_filename] = [max_seconds_lengths[current_filename], s_seconds.length].max
+  end
+end
+
+max_benchmark_name_length = ["benchmark_name", *results.keys].map(&:length).max
+
+puts("## Aggregated results")
+puts
+filename_columns = filenames.map { |filename|
+  filename.rjust(max_seconds_lengths[filename])
+}.join(" | ")
+puts("| #{'benchmark_name'.rjust(max_benchmark_name_length)} | #{filename_columns} |")
+
+header_filename_columns = filenames.map { |filename|
+  "-" * max_seconds_lengths[filename]
+}.join(" | ")
+puts("| #{'-' * max_benchmark_name_length} | #{header_filename_columns} |")
+
+results.each do |benchmark_name, result|
+  s_seconds_columns = filenames.map { |filename|
+    s_seconds = result[filename]
+    s_seconds.rjust(max_seconds_lengths[filename])
+  }.join(" | ")
+  puts("| #{benchmark_name.rjust(max_benchmark_name_length)} | #{s_seconds_columns} |")
+end
