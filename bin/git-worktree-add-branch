@@ -9,4 +9,5 @@ repository_name="$(basename "$(pwd)")"
 new_path=".git-worktree-$branch_name/$repository_name"
 
 git worktree add -b "$branch_name" "$new_path" 1>&2
+sed -i -e "s|$(pwd)|../..|" "$new_path/.git"
 echo "$new_path"
