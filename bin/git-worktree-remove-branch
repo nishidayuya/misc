@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -eu
+
+branch_name=$1
+
+cd "$(git rev-parse --show-toplevel)"
+repository_name="$(basename "$(pwd)")"
+new_path=".git-worktree-$branch_name/$repository_name"
+
+git worktree remove "$new_path"
