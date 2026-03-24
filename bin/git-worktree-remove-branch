@@ -9,3 +9,4 @@ repository_name="$(basename "$(pwd)")"
 new_path=".git-worktree-$branch_name/$repository_name"
 
 git worktree remove "$new_path"
+rmdir -p ".git-worktree-$branch_name"
