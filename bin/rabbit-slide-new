@@ -68,4 +68,9 @@ git cococo sh -eux -c 'bundle exec rake pdf && git add -f pdf/*.pdf'
 タグを打つときは以下
 
 bundle exec rake tag
+
+よく使うテーマ設定は以下
+
+theme
+:   lightning-simple
 EOF
