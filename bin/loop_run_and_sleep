@@ -1,0 +1,21 @@
+#!/usr/bin/env ruby
+
+USAGE = <<~USAGE
+  usage: #{File.basename(Process.argv0)} loop_sleep_sec command [...arguments]
+USAGE
+
+s_sleep_sec = ARGV.shift
+if ARGV.length <= 0
+  $stderr.puts(USAGE)
+  exit(1)
+end
+sleep_sec = s_sleep_sec.to_f
+
+begin
+  loop do
+    system(*ARGV, exception: true)
+    sleep(sleep_sec)
+  end
+rescue Interrupt
+  # nop
+end
