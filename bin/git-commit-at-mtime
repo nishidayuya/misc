@@ -1,0 +1,7 @@
+#!/bin/sh
+
+set -eu
+
+file_path="$(eval echo "\$$#")"
+timestamp="$(stat -c '%w' "$file_path")"
+exec faketime "$timestamp" git commit "$@"
