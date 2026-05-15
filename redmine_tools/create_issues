@@ -1,0 +1,30 @@
+USAGE = <<USAGE
+usage: bin/rails r create_issues {Project#identifier or Project#id} {number of issues}
+USAGE
+
+project_identifier = ARGV.shift
+s_n_issues = ARGV.shift
+if !s_n_issues
+  $stderr.puts(USAGE)
+  exit(1)
+end
+n_issues = s_n_issues.to_i
+
+subject_format = "issue-%0#{(n_issues - 1).to_s.length}d"
+start_date = Date.current
+due_date = start_date + 3.days
+
+ActiveRecord::Base.transaction do
+  project = Project.find_by!(identifier: project_identifier)
+  tracker = Tracker.first!
+  author = User.visible.first!
+
+  n_issues.times do |i|
+    subject = subject_format % i
+    Issue.create!(project:, tracker:, author:, subject:, start_date:, due_date:)
+    puts("created #{i + 1} issues.") if (i + 1) % 100 == 0
+  end
+
+  puts("committing...")
+end
+puts("committed. done.")
