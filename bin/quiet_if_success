@@ -1,0 +1,15 @@
+#!/bin/sh
+
+set -u
+
+output="$("$@" 2>&1)"
+status="$?"
+
+set -e
+
+if test "$status" -ne 0
+then
+  echo -n "$output"
+fi
+
+exit "$status"
