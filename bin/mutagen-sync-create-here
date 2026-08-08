@@ -5,6 +5,7 @@ USAGE = <<~USAGE
 USAGE
 
 require "pathname"
+require "open3"
 
 destination_host = ARGV.shift
 
@@ -14,7 +15,13 @@ if !destination_host
 end
 
 home_path = Pathname(ENV.fetch("HOME"))
-topsrc_path = Pathname(`git rev-parse --show-toplevel`.chomp)
+stdout, _stderr, status = *Open3.capture3("git rev-parse --show-toplevel")
+topsrc_path =
+  if status.success?
+    Pathname(stdout.chomp)
+  else
+    Pathname(".").expand_path
+  end
 relative_topsrc_path = topsrc_path.relative_path_from(home_path)
 destination_host_and_path = "#{destination_host}:#{relative_topsrc_path}"
 
