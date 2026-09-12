@@ -9,6 +9,7 @@ set -eux -o pipefail
 # Mesa falls back to kms_swrast and Hyprland renders on the CPU.
 sudo apt-get install -y --no-install-recommends \
   hyprland \
+  hyprland-guiutils \
   libgl1-mesa-dri \
   xdg-desktop-portal-hyprland \
   xdg-desktop-portal-gtk

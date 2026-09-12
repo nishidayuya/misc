@@ -56,7 +56,8 @@ decoration {
 }
 
 misc {
-  vfr = true
+  # No vfr here: Hyprland 0.55 does not have that option any more, and an
+  # unknown key is a startup error banner across the top of the screen.
   disable_hyprland_logo = true
   disable_splash_rendering = true
 }
