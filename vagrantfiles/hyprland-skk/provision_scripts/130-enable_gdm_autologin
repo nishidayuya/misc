@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -eux -o pipefail
+
+# Log in without being asked, so that "vagrant up" lands on a Hyprland session
+# and the llvmpipe-rendered greeter does not have to be drawn every time.
+#
+# This is separate from 120-install_gdm so that it can be taken out on its own.
+# To go back to a login prompt, drop the execute bit -- run-parts then skips it
+# and the GDM from 120 stays as it is:
+#
+#   chmod -x provision_scripts/130-enable_gdm_autologin
+#
+# Debian's gdm3 has no drop-in directory, so the file itself is edited: any
+# existing setting in the [daemon] section is removed first, then the two lines
+# are inserted right after the section header.
+daemon_conf=/etc/gdm3/daemon.conf
+
+sudo sed -i \
+  -e '/^\[daemon\]/,/^\[/ { /^[[:space:]]*#*[[:space:]]*AutomaticLoginEnable[[:space:]]*=/ d }' \
+  -e '/^\[daemon\]/,/^\[/ { /^[[:space:]]*#*[[:space:]]*AutomaticLogin[[:space:]]*=/ d }' \
+  "${daemon_conf}"
+sudo sed -i \
+  -e '/^\[daemon\]/a AutomaticLoginEnable=true\nAutomaticLogin=vagrant' \
+  "${daemon_conf}"
+
+grep -A 3 '^\[daemon\]' "${daemon_conf}"
