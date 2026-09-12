@@ -1,0 +1,63 @@
+#!/bin/bash
+
+set -eux -o pipefail
+
+mkdir -p ~/.config/hypr
+cat > ~/.config/hypr/hyprland.conf <<'HYPRLAND_CONF'
+# The monitor is left unnamed so that this matches whatever the virtio GPU
+# calls its connector. 1920x1080 is asked for explicitly rather than taking
+# "preferred", because virtio-gpu passes any mode through to the host.
+monitor = , 1920x1080@60, 0x0, 1
+
+# Japanese input.
+#
+# GTK_IM_MODULE and QT_IM_MODULE are deliberately absent: with neither set, GTK
+# and Qt use their built-in Wayland input method and reach fcitx5 over
+# text-input-v3. XMODIFIERS only matters to XWayland clients, of which there
+# are none here, but it costs nothing.
+env = XMODIFIERS,@im=fcitx
+
+# There is no virgl in this VM, so Mesa renders on the CPU with llvmpipe.
+env = LIBGL_ALWAYS_SOFTWARE,1
+
+exec-once = fcitx5 -d
+exec-once = waybar
+
+$mainMod = SUPER
+
+bind = $mainMod, Q, exec, /usr/local/bin/ghostty
+bind = $mainMod, R, exec, wofi --show drun
+bind = $mainMod, C, killactive,
+bind = $mainMod, M, exit,
+bind = $mainMod, V, togglefloating,
+bind = $mainMod, left, movefocus, l
+bind = $mainMod, right, movefocus, r
+bind = $mainMod, up, movefocus, u
+bind = $mainMod, down, movefocus, d
+
+input {
+  kb_layout = us
+  follow_mouse = 1
+}
+
+# Everything is drawn on the CPU, so the expensive effects are off.
+animations {
+  enabled = false
+}
+
+decoration {
+  rounding = 0
+  blur {
+    enabled = false
+  }
+  shadow {
+    enabled = false
+  }
+}
+
+misc {
+  vfr = true
+  disable_hyprland_logo = true
+  disable_splash_rendering = true
+}
+HYPRLAND_CONF

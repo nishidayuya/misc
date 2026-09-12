@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -eux -o pipefail
+
+sudo apt-get install -y --no-install-recommends \
+  waybar
+
+# The configuration Debian ships in /etc/xdg/waybar is used as it is; Hyprland
+# starts the bar from an exec-once in 110-configure_hyprland.
+test -f /etc/xdg/waybar/config || test -f /etc/xdg/waybar/config.jsonc
