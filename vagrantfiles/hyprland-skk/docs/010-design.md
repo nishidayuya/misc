@@ -66,7 +66,8 @@ hyprland-skk/
     ├── 090-install_waybar
     ├── 100-install_wofi
     ├── 110-configure_hyprland
-    └── 120-install_gdm
+    ├── 120-install_gdm
+    └── 130-enable_gdm_autologin
 ```
 
 `run-parts` はファイル名にドットを含むものを無視するので、拡張子は付けない。
@@ -352,10 +353,23 @@ GDM は logind のセッションを seat0 付きで作るので、この問題�
 - `/var/lib/AccountsService/users/vagrant` に `[User] Session=hyprland` を書き、
   GDM が既定で Hyprland セッションを選ぶようにする。毎回歯車アイコンから選ばずに済む。
 
-ログインに使う資格情報は Vagrant box 既定の `vagrant` / `vagrant`。
+ログインに使う資格情報は Vagrant box 既定の `vagrant` / `vagrant`。ただし既定では
+次の 130 が自動ログインを有効にするので、通常この入力は要らない。
 
-自動ログインは既定では有効にしない（GDM でログインする、という要求に合わせる）。
-必要なら `/etc/gdm3/daemon.conf` に次を書けば省ける。
+GDM 導入後は `graphical.target` に入り直す必要があるので、provisioning の最後で
+`vagrant reload` するか `sudo systemctl isolate graphical.target` を実行する。
+
+開発用 VM に限った設定であり、本番環境には流用しない。
+
+### 130-enable_gdm_autologin
+
+GDM の自動ログインを有効にする。`vagrant up` のあと何も操作しなくても Hyprland の
+セッションまで到達するので、第 10 章の画面確認が短くなり、llvmpipe で重いグリーターを
+毎回描かせずに済む。
+
+`/etc/gdm3/daemon.conf` の `[daemon]` セクションに次の 2 行を入れる（既に書かれて
+いれば書き換える）。Debian の gdm3 にはドロップインのディレクトリーが無いので、
+ファイルそのものを編集する。
 
 ```
 [daemon]
@@ -363,8 +377,19 @@ AutomaticLoginEnable=true
 AutomaticLogin=vagrant
 ```
 
-GDM 導入後は `graphical.target` に入り直す必要があるので、provisioning の最後で
-`vagrant reload` するか `sudo systemctl isolate graphical.target` を実行する。
+**120 と分けているのは、自動ログインだけを外せるようにするため。** 外すときは
+`.devcontainer/post_start_command.d/46-vagrant-vm-egress` と同じ手で、実行権限を落とす。
+
+```sh
+chmod -x provision_scripts/130-enable_gdm_autologin
+```
+
+`run-parts` はそれ以降このスクリプトを飛ばすので、120 までで作った GDM は
+そのまま残り、ログイン画面が出るようになる。既に作成済みの VM に効かせるには
+`vagrant destroy -f && vagrant up` で作り直す。
+
+自動ログインが効くのは起動直後の 1 回だけで、いちどログアウトするとグリーターが
+出る。これは GDM の仕様であり、`vagrant` / `vagrant` でログインすればよい。
 
 開発用 VM に限った設定であり、本番環境には流用しない。
 
@@ -488,12 +513,15 @@ vagrant ssh -c 'true'           # ログインできること
 ### 手順 2: 画面とキーボードの確認
 
 `vagrant reload` で `graphical.target` に入れたあと、各段階でキーを送っては
-`bin/screenshot` で 1 枚撮り、PNG を見て判定する。GDM のパスワードは `vagrant`。
+`bin/screenshot` で 1 枚撮り、PNG を見て判定する。
+
+130 が有効なら自動ログインが済んでいるので、1 の時点で既に Hyprland のセッションに
+なっている。130 を外している場合だけ、2 の入力でログインする（パスワードは `vagrant`）。
 
 | # | 送るキー | 期待する画面 |
 | --- | --- | --- |
-| 1 | （なし） | GDM のログイン画面が出ている |
-| 2 | `KEY_V` `KEY_A` `KEY_G` `KEY_R` `KEY_A` `KEY_N` `KEY_T` を 1 回ずつ、最後に `KEY_ENTER` | Hyprland のセッションが起動し、waybar が出ている |
+| 1 | （なし） | Hyprland のセッションが起動し、waybar が出ている |
+| 2 | 130 を外している場合のみ: `KEY_V` `KEY_A` `KEY_G` `KEY_R` `KEY_A` `KEY_N` `KEY_T` を 1 回ずつ、最後に `KEY_ENTER` | GDM のログイン画面から Hyprland のセッションに入る |
 | 3 | `KEY_LEFTMETA KEY_Q` | Ghostty のウィンドウが開く |
 | 4 | `KEY_LEFTCTRL KEY_SPACE` → `KEY_A` `KEY_I` `KEY_U` | Ghostty に「あいう」が出る（Fcitx5-SKK） |
 | 5 | `KEY_LEFTMETA KEY_R` | wofi が開き、Emacs Client / Ghostty / Chromium / テキストエディターの 4 項目が並ぶ |
@@ -526,8 +554,9 @@ journalctl --user -u emacs     # Emacs デーモン
 6. `feat(hyprland-skk): install Chromium and GNOME Text Editor`
 7. `feat(hyprland-skk): install waybar and wofi`
 8. `feat(hyprland-skk): log in to Hyprland through GDM`
-9. `feat(hyprland-skk): add a screenshot helper for checking the desktop`
-10. `feat(devcontainer): ...`（必要が確認できた場合のみ）
+9. `feat(hyprland-skk): let GDM log in automatically`
+10. `feat(hyprland-skk): add a screenshot helper for checking the desktop`
+11. `feat(devcontainer): ...`（必要が確認できた場合のみ）
 
 途中で見つかった修正は、対応するコミットに `fix(hyprland-skk): ...` として積む。
 
@@ -541,7 +570,8 @@ journalctl --user -u emacs     # Emacs デーモン
 | `release.files.ghostty.org` / `ziglang.org` が allowlist 外 | 070 で provisioning が止まる | 第 9 章の 2 を実施 |
 | GTK の text-input-v3 で preedit が見にくい | 入力はできるが体験が悪い | `fcitx5-frontend-gtk4` + `GTK_IM_MODULE=fcitx` に切り替え（Ghostty は別途対処） |
 | GDM の反映に `graphical.target` への切り替えが要る | provisioning 直後はログイン画面が出ていない | `vagrant reload` を手順に含める |
-| GDM のグリーター（gnome-shell）が llvmpipe で重い | ログイン画面の描画が遅い | 解像度を下げる。許容できなければ GDM の自動ログインを有効にして通過を速くする |
+| GDM のグリーター（gnome-shell）が llvmpipe で重い | ログイン画面の描画が遅い | 130 の自動ログインで大半は素通りできる。グリーターを出す場合は解像度を下げる |
+| `/etc/gdm3/daemon.conf` の書式が版で変わる | 130 が効かず、ログイン画面で止まる | `vagrant ssh` から `grep -A3 '\[daemon\]' /etc/gdm3/daemon.conf` で確認する。効かなくても第 10 章の 2 でログインできるので検証は続けられる |
 | `emacs` の user unit が Debian に無い | Emacs Client がメニューから起動しない | `~/.config/systemd/user/emacs.service` を自作する |
 | `virsh screenshot` が PPM を返す | 撮った画像をそのまま読めない | 第 9 章の 3（`netpbm` の追加）を実施 |
 | 画面が消灯していて真っ黒が撮れる | 判定できない | 撮る前に無害なキーを送って起こす |
