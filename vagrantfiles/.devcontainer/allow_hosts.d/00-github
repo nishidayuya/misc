@@ -3,11 +3,21 @@
 set -eu
 
 # Fixed domains
-cat <<EOF
+#
+# Comments are stripped the way 40-docker and 91-vagrant-guest already do it,
+# so that an entry can carry its reason next to it.
+sed -E -e '/^\s*#|^\s*$/ d' <<EOF
 github.com
 api.github.com
 docs.github.com
 objects.githubusercontent.com
+
+# Source archives, which is where a /archive/refs/tags/*.tar.gz URL redirects
+# to. Not covered by the ranges below: those carry GitHub's own services, not
+# the *.githubusercontent.com hosts. Zig fetches build dependencies from URLs
+# like this while building Ghostty in vagrantfiles/hyprland-skk, and without it
+# the build dies with "invalid HTTP response: ConnectionRefused".
+codeload.github.com
 EOF
 
 # GitHub IP ranges (IPv4 only)
