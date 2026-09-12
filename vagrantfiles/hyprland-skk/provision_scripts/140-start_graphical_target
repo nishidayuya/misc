@@ -3,26 +3,29 @@
 set -eux -o pipefail
 
 # 120 changed the default target, but the machine is already up: without this,
-# a plain "vagrant up" leaves the VM at a text console and the desktop only
+# a clean "vagrant up" leaves the VM at a text console and the desktop only
 # appears after someone reboots it.
 #
 # Isolating is safe for the ssh session provisioning runs over: graphical.target
 # pulls in multi-user.target, so sshd is not among the units it stops.
-#
-# This runs after 130 on purpose. Starting GDM before the autologin
-# configuration is written would put the greeter up and leave it there.
-if [ "$(systemctl is-active graphical.target)" != active ]
-then
-  sudo systemctl isolate graphical.target
-fi
+sudo systemctl isolate graphical.target
+
+# graphical.target only pulls the display manager in at the moment it starts.
+# By the time gdm3 was installed the target was already active, so nothing ever
+# picked up the new /etc/systemd/system/display-manager.service symlink and the
+# session stayed dead with graphical.target reporting "active". Start it by
+# name; on a later boot the target does this itself.
+sudo systemctl start display-manager.service
 
 for _ in $(seq 1 30)
 do
-  if [ "$(systemctl is-active gdm.service)" = active ]
+  if [ "$(systemctl is-active display-manager.service)" = active ]
   then
     break
   fi
   sleep 1
 done
 
-systemctl is-active gdm.service
+# This runs after 130 on purpose: starting GDM before the autologin
+# configuration is written would put the greeter up and leave it there.
+systemctl is-active display-manager.service
