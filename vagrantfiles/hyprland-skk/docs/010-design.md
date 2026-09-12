@@ -12,13 +12,13 @@ SKK で日本語入力ができる環境を Vagrant で再現可能にする。
 
 ### 今回の完了条件
 
-自動的に確認できる範囲は次の 2 つに限る。
-
 1. `vagrant up` が最後まで成功する。
 2. `vagrant ssh` でログインできる。
+3. 画面とキーボード操作の確認（第 10 章の表）がすべて通る。
 
-GUI が実際に表示され日本語入力できることの確認は VNC 経由の目視で行う（第 8 章）。
-これは対話的な操作が必要なため、今回の繰返し修正ループの終了条件には含めない。
+3 は人が VNC クライアントを操作しなくてよい。`virsh screenshot` で画面を PNG として
+取り出し、`virsh send-key` でキーを送れるので、GDM のログインから日本語入力まで
+コンテナー内で自動的に確認できる（第 8 章）。よって繰返し修正ループの終了条件に含める。
 
 ## 2. 前提環境と制約
 
@@ -50,6 +50,8 @@ VM が使えるホストのうち、本設計に関係するものは次のと�
 hyprland-skk/
 ├── .gitignore                     # /.vagrant
 ├── Vagrantfile
+├── bin/
+│   └── screenshot                 # 画面確認用のラッパー（第 8 章）
 ├── docs/
 │   └── 010-design.md              # この文書
 └── provision_scripts/
@@ -397,6 +399,42 @@ X11 に落とすと XWayland 上での描画になり、virtio-gpu + llvmpipe �
 
 ## 8. 画面の見かた
 
+画面には 2 つの経路で到達できる。動作確認は (a) だけで完結する。
+
+### (a) libvirt 経由（自動確認に使う）
+
+QEMU 自身がフレームバッファーを持っているので、VNC クライアントを介さずに
+libvirt の API から画面を取り出せる。`virsh` はコンテナーに既に入っている。
+
+```sh
+domain=hyprland-skk_default
+
+# 画面を撮る。libvirt 11.3 + QEMU 10.0 の組合せでは image/png が返る見込みなので
+# そのまま読める（PPM が返った場合は第 9 章の 3 を実施する）
+virsh screenshot "${domain}" --file /tmp/hyprland-skk.png
+
+# キーを送る。codeset は既定の linux なので KEY_* の名前がそのまま使える
+virsh send-key "${domain}" KEY_LEFTMETA KEY_Q                    # Super+Q
+virsh send-key "${domain}" KEY_LEFTMETA KEY_R                    # Super+R
+virsh send-key "${domain}" --holdtime 50 KEY_LEFTCTRL KEY_SPACE  # Fcitx5 の切り替え
+```
+
+`bin/screenshot` は上を包んで連番のファイル名で `/tmp` に落とし、撮ったパスを表示する
+だけのラッパー。確認の記録がそのまま残る。
+
+できること・できないこと:
+
+- キーボード入力は evdev のイベントとしてゲストに届くので、GDM のログインも
+  Hyprland のキーバインドも wofi の絞り込みも SKK の入力も、すべて送れる。
+- `virsh send-key` に渡した複数のキーコードは**同時押し**になる。文字列を打つには
+  1 文字につき 1 回呼ぶ。
+- **ポインターは送れない**。`virsh` にマウスイベントの API が無い。確認手順は
+  キーボードだけで到達できるように組む（GDM も wofi もそれで足りる）。
+- 画面が消灯していると真っ黒が撮れる。撮る前に無害なキー（`KEY_LEFTSHIFT` など）を
+  送って起こす。
+
+### (b) VNC クライアント（人が対話的に触る場合）
+
 ```
 GDM でログイン → Hyprland セッション → virtio-gpu (DRM: Virtual-1)
          → QEMU が VNC でフレームバッファーを提供 (0.0.0.0:5910, コンテナー内)
@@ -404,35 +442,39 @@ GDM でログイン → Hyprland セッション → virtio-gpu (DRM: Virtual-1)
          → 手元の VNC クライアント
 ```
 
-確認コマンド:
-
 ```sh
 virsh -c qemu:///system list
 virsh -c qemu:///system vncdisplay <domain>
 ```
 
-うまくいかない場合の代替として、ゲスト内に `wayvnc` を入れて
-`vagrant ssh -- -L 5900:127.0.0.1:5900` で SSH トンネル越しに見る方法がある。
-こちらは Hyprland の headless 出力を別途作る必要があり手数が多いので、第一候補にはしない。
+ゲスト内に `wayvnc` を入れて `vagrant ssh -- -L 5900:127.0.0.1:5900` で SSH トンネル
+越しに見る方法もあるが、Hyprland の headless 出力を別途作る必要があり手数が多いので
+採らない。
 
 ## 9. Dev Container への変更
 
 必要になる見込みのもの。実際に `vagrant up` を回して、必要だと確認できたものだけ入れる。
 
-1. **`devcontainer.json` にポート転送を追加**（VNC で見るために必須）
+1. **`devcontainer.json` にポート転送を追加**（人が VNC で触る場合のみ）
    `"forwardPorts": [5910]` を追加する。DevPod でも効かせるなら `appPort` を使う。
-   どちらもコンテナーの再作成が要る。
+   どちらもコンテナーの再作成が要る。第 10 章の自動確認はコンテナー内で完結するため、
+   これが無くても検証そのものは回る。
 2. **`allow_hosts.d` に Ghostty のビルドに要るホストを追加**（必須）
    `91-vagrant-guest` に次の 2 つを足す。どちらも現在の allowlist に無く、無いままだと
    070 の provisioning が `connection refused` で止まる。
    - `release.files.ghostty.org` … Ghostty のソース tarball
    - `ziglang.org` … mise の `core:zig` が取る Zig コンパイラー
-3. 上記以外は不要と考えている。VNC はコンテナー内の libvirt が listen し、
+3. **`Dockerfile` に `netpbm` を追加**（`virsh screenshot` が PPM を返した場合のみ）
+   PPM のままでは画像として読めないので `pnmtopng` で PNG にする。libvirt 11.3 +
+   QEMU 10.0 なら PNG が直接返る見込みなので、実際に 1 枚撮ってから要否を決める。
+4. 上記以外は不要と考えている。VNC はコンテナー内の libvirt が listen し、
    `00-firewall` は INPUT を制限していないので、受信側の追加ルールは要らない。
 
 コミットは `feat(devcontainer): ...` として Vagrantfile 側とは分けて積む。
 
 ## 10. 検証手順
+
+### 手順 1: 起動と SSH
 
 ```sh
 cd /workspaces/misc/vagrantfiles/hyprland-skk
@@ -443,15 +485,25 @@ vagrant ssh -c 'true'           # ログインできること
 失敗したら原因を直してコミットし、`vagrant destroy -f && vagrant up` で
 最初からやり直す。これを通るまで繰返す。
 
-通ったあとに手動で確認する項目（今回の完了条件には含めない）。
+### 手順 2: 画面とキーボードの確認
 
-- [ ] VNC で GDM のログイン画面が出る
-- [ ] `vagrant` / `vagrant` でログインでき、Hyprland セッションが起動する
-- [ ] waybar が上部に出ている
-- [ ] `Super+Q` で Ghostty が起動する
-- [ ] `Super+R` で wofi が出て、4 つの項目が並んでいる
-- [ ] Ghostty / Chromium / GNOME テキストエディターで Fcitx5-SKK による入力ができる
-- [ ] Emacs で `C-x C-j` から DDSKK による入力ができる
+`vagrant reload` で `graphical.target` に入れたあと、各段階でキーを送っては
+`bin/screenshot` で 1 枚撮り、PNG を見て判定する。GDM のパスワードは `vagrant`。
+
+| # | 送るキー | 期待する画面 |
+| --- | --- | --- |
+| 1 | （なし） | GDM のログイン画面が出ている |
+| 2 | `KEY_V` `KEY_A` `KEY_G` `KEY_R` `KEY_A` `KEY_N` `KEY_T` を 1 回ずつ、最後に `KEY_ENTER` | Hyprland のセッションが起動し、waybar が出ている |
+| 3 | `KEY_LEFTMETA KEY_Q` | Ghostty のウィンドウが開く |
+| 4 | `KEY_LEFTCTRL KEY_SPACE` → `KEY_A` `KEY_I` `KEY_U` | Ghostty に「あいう」が出る（Fcitx5-SKK） |
+| 5 | `KEY_LEFTMETA KEY_R` | wofi が開き、Emacs Client / Ghostty / Chromium / テキストエディターの 4 項目が並ぶ |
+| 6 | `KEY_C` `KEY_H` → `KEY_ENTER` | Chromium が起動する |
+| 7 | アドレスバーで 4 と同じ手順 | 「あいう」が入る |
+| 8 | wofi からテキストエディターを起動し 4 と同じ手順 | 「あいう」が入る |
+| 9 | wofi から Emacs Client を起動し `KEY_LEFTCTRL KEY_X` → `KEY_LEFTCTRL KEY_J` → `KEY_A` `KEY_I` `KEY_U` | Emacs に「あいう」が出る（DDSKK） |
+
+4・7・8 が Fcitx5-SKK の確認、9 が DDSKK の確認にあたる。SKK なので `aiu` の
+ローマ字がそのまま「あいう」になり、変換操作までは踏み込まなくても判定できる。
 
 補助的な確認コマンド（`vagrant ssh` から）:
 
@@ -474,7 +526,8 @@ journalctl --user -u emacs     # Emacs デーモン
 6. `feat(hyprland-skk): install Chromium and GNOME Text Editor`
 7. `feat(hyprland-skk): install waybar and wofi`
 8. `feat(hyprland-skk): log in to Hyprland through GDM`
-9. `feat(devcontainer): ...`（必要が確認できた場合のみ）
+9. `feat(hyprland-skk): add a screenshot helper for checking the desktop`
+10. `feat(devcontainer): ...`（必要が確認できた場合のみ）
 
 途中で見つかった修正は、対応するコミットに `fix(hyprland-skk): ...` として積む。
 
@@ -490,3 +543,6 @@ journalctl --user -u emacs     # Emacs デーモン
 | GDM の反映に `graphical.target` への切り替えが要る | provisioning 直後はログイン画面が出ていない | `vagrant reload` を手順に含める |
 | GDM のグリーター（gnome-shell）が llvmpipe で重い | ログイン画面の描画が遅い | 解像度を下げる。許容できなければ GDM の自動ログインを有効にして通過を速くする |
 | `emacs` の user unit が Debian に無い | Emacs Client がメニューから起動しない | `~/.config/systemd/user/emacs.service` を自作する |
+| `virsh screenshot` が PPM を返す | 撮った画像をそのまま読めない | 第 9 章の 3（`netpbm` の追加）を実施 |
+| 画面が消灯していて真っ黒が撮れる | 判定できない | 撮る前に無害なキーを送って起こす |
+| ポインター操作が要る場面が出る | その項目だけ自動確認できない | キーボードだけで到達できる手順に組み替える。それも駄目なら人が VNC で触る |
