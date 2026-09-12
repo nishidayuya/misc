@@ -24,4 +24,10 @@ Session=hyprland
 SystemAccount=false
 ACCOUNTS_SERVICE
 
+# accounts-daemon caches what it has read, and installing gdm3 above starts it.
+# By the time the file lands, the daemon is already answering for this user with
+# no session set, so GDM autologs into GNOME -- which is installed alongside the
+# greeter -- and Hyprland never runs. Re-reading the file fixes the choice.
+sudo systemctl try-restart accounts-daemon.service
+
 systemctl is-enabled gdm3.service
