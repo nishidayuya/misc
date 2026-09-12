@@ -18,6 +18,12 @@ sudo tee /etc/chromium.d/wayland-ime > /dev/null <<'FLAGS'
 export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --ozone-platform=wayland"
 export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --enable-wayland-ime"
 export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --wayland-text-input-version=3"
+
+# Without this, the first start pops up gnome-keyring's "Choose password for
+# new keyring" dialog and waits behind it, because Chromium wants somewhere to
+# put saved passwords. Nothing in this VM has passwords worth keeping, and a
+# modal dialog in front of the browser defeats the point of starting it.
+export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --password-store=basic"
 FLAGS
 
 # GNOME Text Editor is GTK4 and needs nothing: with GTK_IM_MODULE unset it uses
