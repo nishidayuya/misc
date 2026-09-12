@@ -72,7 +72,8 @@ hyprland-skk/
     ├── 100-install_wofi
     ├── 110-configure_hyprland
     ├── 120-install_gdm
-    └── 130-enable_gdm_autologin
+    ├── 130-enable_gdm_autologin
+    └── 140-start_graphical_target
 ```
 
 `run-parts` はファイル名にドットを含むものを無視するので、拡張子は付けない。
@@ -398,6 +399,23 @@ chmod -x provision_scripts/130-enable_gdm_autologin
 
 開発用 VM に限った設定であり、本番環境には流用しない。
 
+### 140-start_graphical_target
+
+`graphical.target` に入り直し、display manager を起動する。
+
+120 が既定のターゲットを変えても、その時点で動いている VM は切り替わらない。これが
+無いと `vagrant up` はテキストコンソールのまま終わり、デスクトップは誰かが再起動する
+まで出てこない。
+
+`systemctl isolate graphical.target` だけでは足りなかった。`graphical.target` が既に
+active になっている場合があり、そのとき display manager は起動されないまま残る
+（ターゲットが display manager を引き込むのは「起動する瞬間」だけで、gdm3 の
+インストールが置いた `/etc/systemd/system/display-manager.service` を後から拾い直す
+ことはない）。`display-manager.service` を名指しで起動する。
+
+130 の後に置くのは意図的で、自動ログインの設定を書く前に GDM を起動すると
+グリーターが出たまま止まるため。
+
 ## 6. 日本語入力の設計
 
 Wayland の `text-input-v3` に一本化する。Fcitx5 の Wayland フロントエンドは既定で
@@ -520,8 +538,8 @@ vagrant ssh -c 'true'           # ログインできること
 
 ### 手順 2: 画面とキーボードの確認
 
-`vagrant reload` で `graphical.target` に入れたあと、各段階でキーを送っては
-`bin/screenshot` で 1 枚撮り、PNG を見て判定する。
+`vagrant up` が終わった時点で 140 が `graphical.target` まで入れているので、そのまま
+各段階でキーを送っては `bin/screenshot` で 1 枚撮り、PNG を見て判定する。
 
 130 が有効なら自動ログインが済んでいるので、1 の時点で既に Hyprland のセッションに
 なっている。130 を外している場合だけ、2 の入力でログインする（パスワードは `vagrant`）。
@@ -603,7 +621,7 @@ box は `~/.vagrant.d`（名前付きボリューム）に残るので `vagrant 
 | Ghostty のビルドに時間がかかる | `vagrant up` が長い、手順 3 の 1 周が長い | `VAGRANT_CPUS` を増やす。切り分け中は 070 だけ外して回し、手順 3 では必ず戻す |
 | `release.files.ghostty.org` / `ziglang.org` が allowlist 外 | 070 で provisioning が止まる | 第 9 章の 2 を実施 |
 | GTK の text-input-v3 で preedit が見にくい | 入力はできるが体験が悪い | `fcitx5-frontend-gtk4` + `GTK_IM_MODULE=fcitx` に切り替え（Ghostty は別途対処） |
-| GDM の反映に `graphical.target` への切り替えが要る | provisioning 直後はログイン画面が出ていない | `vagrant reload` を手順に含める |
+| GDM が GNOME セッションでログインしてしまう | Hyprland が起動しない | 120 で AccountsService のファイルを書いたあと accounts-daemon を再起動する（対応済み） |
 | GDM のグリーター（gnome-shell）が llvmpipe で重い | ログイン画面の描画が遅い | 130 の自動ログインで大半は素通りできる。グリーターを出す場合は解像度を下げる |
 | `/etc/gdm3/daemon.conf` の書式が版で変わる | 130 が効かず、ログイン画面で止まる | `vagrant ssh` から `grep -A3 '\[daemon\]' /etc/gdm3/daemon.conf` で確認する。効かなくても第 10 章の 2 でログインできるので検証は続けられる |
 | `emacs` の user unit が Debian に無い | Emacs Client がメニューから起動しない | `~/.config/systemd/user/emacs.service` を自作する |
