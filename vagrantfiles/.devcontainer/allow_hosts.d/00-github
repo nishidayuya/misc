@@ -1,0 +1,42 @@
+#!/bin/sh
+
+set -eu
+
+# Fixed domains
+cat <<EOF
+github.com
+api.github.com
+docs.github.com
+objects.githubusercontent.com
+EOF
+
+# GitHub IP ranges (IPv4 only)
+#
+# https://docs.github.com/ja/rest/meta/meta?apiVersion=2026-03-10#get-github-meta-information
+#
+# These ranges are not a nicety on top of the domains above: github.com resolves
+# to one address here, and a later connection can get a different one, which the
+# firewall would then reject with a bare "connection refused".
+#
+# So the fetch must not be allowed to fail quietly. Piping curl straight into jq
+# did exactly that: the pipeline reports sort's status, so an error response left
+# the range list empty and the script still exited 0. Fetch into a file and let
+# curl's own status stop the script instead.
+meta_json="$(mktemp)"
+trap 'rm -f "${meta_json}"' EXIT
+
+# The unauthenticated rate limit is counted per IP address, which shared CI
+# runners do run into, so send a token whenever one is available.
+set -- --fail --silent --show-error --retry 3 --retry-all-errors \
+  --header "Accept: application/vnd.github+json"
+github_token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+if test -n "${github_token}"
+then
+  set -- "$@" --header "Authorization: Bearer ${github_token}"
+fi
+
+curl "$@" https://api.github.com/meta > "${meta_json}"
+
+jq -r '.git[], .web[], .api[], .actions[], .packages[], .pages[]' < "${meta_json}" |
+  grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' |
+  sort -u

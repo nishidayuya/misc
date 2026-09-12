@@ -1,0 +1,49 @@
+{
+  "name": "Mise & Antigravity CLI Dev Container",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    // Pinned to 4 rather than 2: from 3.x on the feature picks the iptables
+    // backend when the container starts instead of when the image is built, so
+    // it lands on nft on a host whose kernel no longer carries the legacy
+    // ip_tables module. Ubuntu 26.04, which the arm64 CI leg runs on, is such a
+    // host, and post_start_command.d/00-firewall needs iptables-restore to work
+    // there.
+    "ghcr.io/devcontainers/features/docker-in-docker:4": {
+      "version": "latest",
+      "moby": false
+    }
+  },
+  "mounts": [
+    "source=${localEnv:DOT_DEVCONTAINER_HOME},target=/dev_container_home,type=bind,consistency=cached"
+  ],
+  "containerEnv": {
+    "DOT_DEVCONTAINER_HOME": "/dev_container_home"
+  },
+  "capAdd": [
+    "NET_ADMIN"
+  ],
+  "initializeCommand": ".devcontainer/run-parts.sh .devcontainer/initialize_command.d",
+  // The path has to be absolute: the Dev Container CLI resolves runArgs
+  // relative to the workspace folder, but DevPod runs "docker run" from its own
+  // agent directory, where a relative path does not exist.
+  "runArgs": [
+    "--init",
+    "--env-file",
+    "${localWorkspaceFolder}/.devcontainer/.env.additional"
+  ],
+  "overrideCommand": true,
+  "postStartCommand": ".devcontainer/run-parts.sh .devcontainer/post_start_command.d",
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode-remote.remote-containers",
+        "shopify.ruby-lsp",
+        "dbaeumer.vscode-eslint"
+      ]
+    }
+  }
+}

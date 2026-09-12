@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -eu
+
+# Claude Code is installed by the native installer (see Dockerfile), which keeps
+# its versions under ~/.local/share/claude, so "claude update" is the right
+# mechanism to refresh it. This runs after 00-firewall because it needs network
+# access to downloads.claude.ai.
+
+if ! command -v claude >/dev/null 2>&1; then
+  echo "claude is not installed. Skipping." >&2
+  exit 0
+fi
+
+echo "Updating Claude Code (currently $(claude --version))..."
+
+# Updating is best-effort: a transient failure must never break the container
+# startup, because postStartCommand runs run-parts with --exit-on-error.
+if claude update; then
+  echo "Claude Code is now $(claude --version)."
+else
+  echo "claude update failed. Keeping the installed version." >&2
+fi

@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -eu
+
+# Git source tarballs downloaded by the asdf-git plugin
+# (https://github.com/nishidayuya/asdf-git)
+cat <<EOF
+mirrors.edge.kernel.org
+EOF

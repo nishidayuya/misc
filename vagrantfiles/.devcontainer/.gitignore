@@ -1,0 +1,6 @@
+/.env.additional
+# Build scratch space that the two CLIs leave in the workspace when they run:
+# DevPod stages its generated Dockerfile and the resolved features here, and the
+# Dev Container CLI writes the feature lockfile.
+/.devpod-internal/
+/devcontainer-lock.json

@@ -1,0 +1,39 @@
+#!/bin/sh
+
+set -eu
+
+# Fastly IP ranges
+#
+# https://www.fastly.com/documentation/reference/api/utils/public-ip-list/
+#
+# deb.debian.org, security.debian.org, static.rust-lang.org, crates.io and
+# rubygems.org are all served by Fastly, and the first three answer a query with
+# a single anycast address picked out of a much larger pool. 00-firewall
+# resolves every domain exactly once, so a connection that later gets a
+# different address is rejected with a bare "connection refused". CI hit that on
+# static.rust-lang.org and on deb.debian.org in consecutive runs.
+#
+# Allowing the published ranges covers the whole pool, the way 00-github already
+# does for GitHub. The trade-off is that Fastly is a shared CDN, so this opens
+# ports 80 and 443 to anything hosted on it -- unlike GitHub's ranges, which
+# only carry GitHub.
+#
+# api.fastly.com is emitted as a domain as well, so that fetching the list still
+# works when postStartCommand runs again in a container whose firewall is
+# already up.
+echo api.fastly.com
+
+# Same reasoning as in 00-github: piping curl into another command reports only
+# the last command's status, so an error response would leave the range list
+# empty and still exit 0. Fetch into a file and let curl's own status stop the
+# script.
+ip_list_json="$(mktemp)"
+trap 'rm -f "${ip_list_json}"' EXIT
+
+curl --fail --silent --show-error --retry 3 --retry-all-errors \
+  https://api.fastly.com/public-ip-list > "${ip_list_json}"
+
+# IPv4 only, matching what 00-firewall turns into rules.
+jq -r '.addresses[]' < "${ip_list_json}" |
+  grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' |
+  sort -u

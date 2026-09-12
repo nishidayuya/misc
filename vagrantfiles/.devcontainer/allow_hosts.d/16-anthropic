@@ -1,0 +1,8 @@
+#!/bin/sh
+
+set -eu
+
+echo "api.anthropic.com"
+# Claude Code native installer download / background auto-update endpoints
+echo "claude.ai"
+echo "downloads.claude.ai"

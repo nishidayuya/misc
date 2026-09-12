@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -eux
+
+if test -z "${DOT_DEVCONTAINER_HOME:-}"
+then
+  echo "DOT_DEVCONTAINER_HOME is not set." >&2
+  echo "Set it to the directory that holds the files to link into the" >&2
+  echo "container home directory. e.g. export DOT_DEVCONTAINER_HOME=\"\$HOME/dev_container_home\"" >&2
+  exit 1
+fi

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -eu
+
+# Antigravity CLI (agy): install script / OAuth callback, the auto-updater
+# (Cloud Run), and the binary download bucket. The Google API endpoints it
+# talks to (cloudcode-pa.googleapis.com, oauth2.googleapis.com, etc.) are
+# already covered by 20-google.
+cat <<EOF
+antigravity.google
+antigravity-cli-auto-updater-974169037036.us-central1.run.app
+storage.googleapis.com
+accounts.google.com
+EOF

@@ -1,0 +1,16 @@
+#!/bin/sh
+
+set -eu
+
+sed -E -e '/^\s*#|^\s*$/ d' <<EOF
+# rustup-init installer script
+sh.rustup.rs
+
+# rustup / toolchain binaries
+static.rust-lang.org
+
+# cargo registry
+crates.io
+index.crates.io
+static.crates.io
+EOF
