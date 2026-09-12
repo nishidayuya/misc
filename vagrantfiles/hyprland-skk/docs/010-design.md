@@ -38,9 +38,11 @@ VM が使えるホストのうち、本設計に関係するものは次のと�
 - `github.com` / `objects.githubusercontent.com` … `00-github`
 - `mise.run` … `91-vagrant-guest`、`mise.jdx.dev` … `50-mise`
 
-**未確認事項**: GitHub Release のアセットは配布元が
-`release-assets.githubusercontent.com` に変わっている場合がある。Ghostty の AppImage 取得が
-`connection refused` で失敗したら `allow_hosts.d` への追加が必要になる（第 9 章）。
+一方、Ghostty をソースからビルドするために次の 2 つが新たに必要になる。**どちらも
+現在の allowlist に無い**ので、`allow_hosts.d` への追加が前提になる（第 9 章）。
+
+- `release.files.ghostty.org` … Ghostty のソース tarball と minisig の配布元
+- `ziglang.org` … mise の `core:zig` が取得する Zig コンパイラーの配布元
 
 ## 3. ディレクトリー構成
 
@@ -62,7 +64,7 @@ hyprland-skk/
     ├── 090-install_waybar
     ├── 100-install_wofi
     ├── 110-configure_hyprland
-    └── 120-enable_autologin
+    └── 120-install_gdm
 ```
 
 `run-parts` はファイル名にドットを含むものを無視するので、拡張子は付けない。
@@ -218,15 +220,37 @@ provisioning 時に確認し、無ければ `~/.config/systemd/user/emacs.servic
 
 ### 070-install_ghostty_by_mise
 
-Ghostty は mise のレジストリーに短縮名が無い（`mise registry` に `ghostty` は無い）。
-AppImage を GitHub Release から取る backend 指定で入れる。
+Ghostty は mise 自身のレジストリーには無いが、asdf のコミュニティープラグイン
+`asdf:ghostty`（実体は `ilvez/asdf-ghostty`）が使える。コンテナー内で
+`mise ls-remote asdf:ghostty` が 1.3.1 までのバージョンを返すことを確認済み。
+
+プラグインの追加は、既存の `mise/provision_scripts/025-install_git_by_mise` と同じく
+git URL を明示する形を採る。短縮名だけの `mise plugin install ghostty` は、この
+コンテナーの allowlist 下では解決に失敗した。
 
 ```sh
-mise use --global "github:pkgforge-dev/ghostty-appimage"
+mise plugin install ghostty https://github.com/ilvez/asdf-ghostty
+mise use --global "zig@0.15.2"
+mise use --global "ghostty@1.3.1"
 ```
 
-AppImage の実行には FUSE が要るので `libfuse2t64` を APT で入れる。入らない/動かない
-場合は `APPIMAGE_EXTRACT_AND_RUN=1` を環境変数で与える方針に切り替える。
+**このプラグインはバイナリーを配らず、ソースから `zig build` する**。そのため次が要る。
+
+- **Zig 0.15.2**。Ghostty 1.3.1 の `build.zig.zon` が `minimum_zig_version = "0.15.2"` を
+  宣言している。プラグイン側の `get_required_zig_version()` は 1.2.x までしか対応表を
+  持たず 1.3.x では空を返す（警告が出るだけでビルドは進む）ので、Zig のバージョンは
+  こちらで固定する。`latest` ではなく版を打っておくのは、この対応関係が版ごとに
+  変わるため。
+- **GTK4 まわりのビルド依存**。trixie には必要なものが揃っている
+  （`blueprint-compiler` 0.16.0、`gtk4-layer-shell` 1.0.4）。
+
+```sh
+sudo apt-get install -y --no-install-recommends \
+  build-essential pkg-config git gettext libxml2-utils \
+  libgtk-4-dev libadwaita-1-dev libgtk4-layer-shell-dev blueprint-compiler
+```
+
+ビルドは数分から十数分かかる。`vagrant up` の所要時間はここが支配的になる。
 
 `.desktop` ファイルが付いてこないので、`~/.local/share/applications/ghostty.desktop` を
 自分で用意する。`Exec` は mise の shim ではなくフルパスの wrapper を指す。
@@ -309,18 +333,36 @@ misc { vfr = true }
 合わせる。`LIBGL_ALWAYS_SOFTWARE` は保険であり、virtio-gpu 上で Mesa が自動的に
 `kms_swrast` を選ぶなら不要。動作確認後に外すかどうか判断する。
 
-### 120-enable_autologin
+### 120-install_gdm
 
-**ここが Hyprland を動かすうえでの肝**。Hyprland は DRM のマスターを取るために
-seat を持つセッションが要る。SSH のセッションには seat が無いので、`vagrant ssh` から
-`Hyprland` を叩いても起動しない。tty1 に自動ログインし、そこから起動する。
+`gdm3` を APT で入れ、GDM でログインしてから Hyprland を起動する。
 
-- `/etc/systemd/system/getty@tty1.service.d/override.conf` で
-  `agetty --autologin vagrant` にする。
-- `~/.bash_profile` に「tty1 かつ `WAYLAND_DISPLAY` 未設定なら `exec Hyprland`」を追加する。
+Hyprland は DRM のマスターを取るために seat を持つセッションを必要とする。SSH の
+セッションには seat が無いので、`vagrant ssh` から `Hyprland` を叩いても起動しない。
+GDM は logind のセッションを seat0 付きで作るので、この問題がディスプレイマネージャー
+側で解決する。
 
-provisioning 後に `sudo systemctl daemon-reload && sudo systemctl restart getty@tty1` で
-反映する（`vagrant reload` でもよい）。
+- `apt-get install -y gdm3`
+- `systemctl set-default graphical.target`
+  （Vagrant の box は `multi-user.target` 既定なので明示的に切り替える）
+- セッション定義は `hyprland` パッケージ同梱の
+  `/usr/share/wayland-sessions/hyprland.desktop` をそのまま使う。
+- `/var/lib/AccountsService/users/vagrant` に `[User] Session=hyprland` を書き、
+  GDM が既定で Hyprland セッションを選ぶようにする。毎回歯車アイコンから選ばずに済む。
+
+ログインに使う資格情報は Vagrant box 既定の `vagrant` / `vagrant`。
+
+自動ログインは既定では有効にしない（GDM でログインする、という要求に合わせる）。
+必要なら `/etc/gdm3/daemon.conf` に次を書けば省ける。
+
+```
+[daemon]
+AutomaticLoginEnable=true
+AutomaticLogin=vagrant
+```
+
+GDM 導入後は `graphical.target` に入り直す必要があるので、provisioning の最後で
+`vagrant reload` するか `sudo systemctl isolate graphical.target` を実行する。
 
 開発用 VM に限った設定であり、本番環境には流用しない。
 
@@ -331,18 +373,18 @@ Wayland の `text-input-v3` に一本化する。Fcitx5 の Wayland フロント
 
 | 環境変数 | 値 | 理由 |
 | --- | --- | --- |
-| `GTK_IM_MODULE` | **設定しない** | 未設定だと GTK3/GTK4 が内蔵の Wayland IM モジュールを使う。Ghostty は AppImage で GTK を同梱しており、システム側の `fcitx5-frontend-gtk4` は読めない。text-input-v3 ならプロトコルだけで完結するのでこの問題が無い |
+| `GTK_IM_MODULE` | **設定しない** | 未設定だと GTK3/GTK4 が内蔵の Wayland IM モジュールを使う。Fcitx5 の Wayland フロントエンドは既定で有効で、コンポジターのプロトコルだけで完結するため、アプリケーションごとに IM モジュールを配る必要が無い |
 | `QT_IM_MODULE` | **設定しない** | 同上 |
 | `XMODIFIERS` | `@im=fcitx` | XWayland アプリ用。今回の 4 つはすべて Wayland ネイティブなので実際には使われないが、害が無いので残す |
 
 `GDK_BACKEND=x11` / `--ozone-platform=x11` を使わない方針は、この構成と整合している。
-X11 に落とすと IM モジュール経由の入力になり、上記の AppImage 問題が再発するうえ、
-XWayland 上での描画になって virtio-gpu + llvmpipe の負荷も増える。
+X11 に落とすと XWayland 上での描画になり、virtio-gpu + llvmpipe の負荷が増える。
 
 既知の弱点として、GTK の text-input-v3 実装は preedit の表示が素朴（太字ハイライト
 程度）である。入力自体は成立するので今回は許容する。どうしても駄目なら
-`fcitx5-frontend-gtk4` を入れて `GTK_IM_MODULE=fcitx` に切り替えるが、その場合
-Ghostty の AppImage だけは別途対処が必要になる。
+`fcitx5-frontend-gtk4` を入れて `GTK_IM_MODULE=fcitx` に切り替える。Ghostty は
+システムの GTK4 にリンクしてビルドするので、この切り替えは 3 つの GTK アプリケーション
+すべてに同じように効く。
 
 ## 7. Emacs と Fcitx5 の棲み分け
 
@@ -356,7 +398,7 @@ Ghostty の AppImage だけは別途対処が必要になる。
 ## 8. 画面の見かた
 
 ```
-Hyprland → virtio-gpu (DRM: Virtual-1)
+GDM でログイン → Hyprland セッション → virtio-gpu (DRM: Virtual-1)
          → QEMU が VNC でフレームバッファーを提供 (0.0.0.0:5910, コンテナー内)
          → Dev Container のポート転送
          → 手元の VNC クライアント
@@ -380,10 +422,11 @@ virsh -c qemu:///system vncdisplay <domain>
 1. **`devcontainer.json` にポート転送を追加**（VNC で見るために必須）
    `"forwardPorts": [5910]` を追加する。DevPod でも効かせるなら `appPort` を使う。
    どちらもコンテナーの再作成が要る。
-2. **`allow_hosts.d` の追加**（Ghostty の取得が失敗した場合のみ）
-   `91-vagrant-guest` に `release-assets.githubusercontent.com` を追加する。
-   `00-github` が持っている GitHub の IP レンジには `*.githubusercontent.com` が
-   含まれないため、Release アセットの配布元が変わっているとここで止まる。
+2. **`allow_hosts.d` に Ghostty のビルドに要るホストを追加**（必須）
+   `91-vagrant-guest` に次の 2 つを足す。どちらも現在の allowlist に無く、無いままだと
+   070 の provisioning が `connection refused` で止まる。
+   - `release.files.ghostty.org` … Ghostty のソース tarball
+   - `ziglang.org` … mise の `core:zig` が取る Zig コンパイラー
 3. 上記以外は不要と考えている。VNC はコンテナー内の libvirt が listen し、
    `00-firewall` は INPUT を制限していないので、受信側の追加ルールは要らない。
 
@@ -402,7 +445,8 @@ vagrant ssh -c 'true'           # ログインできること
 
 通ったあとに手動で確認する項目（今回の完了条件には含めない）。
 
-- [ ] VNC で Hyprland の画面が見える
+- [ ] VNC で GDM のログイン画面が出る
+- [ ] `vagrant` / `vagrant` でログインでき、Hyprland セッションが起動する
 - [ ] waybar が上部に出ている
 - [ ] `Super+Q` で Ghostty が起動する
 - [ ] `Super+R` で wofi が出て、4 つの項目が並んでいる
@@ -412,10 +456,12 @@ vagrant ssh -c 'true'           # ログインできること
 補助的な確認コマンド（`vagrant ssh` から）:
 
 ```sh
-hyprctl monitors                # Virtual-1 と解像度
-hyprctl clients                 # 起動中のウィンドウ
-fcitx5-diagnose                 # IM の状態一式
-journalctl --user -u emacs      # Emacs デーモン
+systemctl status gdm           # ディスプレイマネージャー
+loginctl list-sessions         # seat0 のセッションがあるか
+hyprctl monitors               # Virtual-1 と解像度
+hyprctl clients                # 起動中のウィンドウ
+fcitx5-diagnose                # IM の状態一式
+journalctl --user -u emacs     # Emacs デーモン
 ```
 
 ## 11. コミット計画
@@ -424,10 +470,10 @@ journalctl --user -u emacs      # Emacs デーモン
 2. `feat(hyprland-skk): install Hyprland from trixie-backports`
 3. `feat(hyprland-skk): install Emacs with DDSKK`
 4. `feat(hyprland-skk): install Fcitx5 SKK for Wayland applications`
-5. `feat(hyprland-skk): install Ghostty via mise`
+5. `feat(hyprland-skk): build Ghostty with mise and the asdf-ghostty plugin`
 6. `feat(hyprland-skk): install Chromium and GNOME Text Editor`
 7. `feat(hyprland-skk): install waybar and wofi`
-8. `feat(hyprland-skk): start Hyprland on tty1 automatically`
+8. `feat(hyprland-skk): log in to Hyprland through GDM`
 9. `feat(devcontainer): ...`（必要が確認できた場合のみ）
 
 途中で見つかった修正は、対応するコミットに `fix(hyprland-skk): ...` として積む。
@@ -437,8 +483,10 @@ journalctl --user -u emacs      # Emacs デーモン
 | リスク | 影響 | 代替案 |
 | --- | --- | --- |
 | llvmpipe の描画が重い | Chromium のスクロールなどが遅い | 解像度を 1280x800 に落とす。アニメーション・blur は既に無効 |
-| Ghostty の AppImage が FUSE 無しで動かない | `Super+Q` が無反応 | `APPIMAGE_EXTRACT_AND_RUN=1` を wrapper に入れる |
-| GitHub Release の配布元が allowlist 外 | 070 で provisioning が止まる | 第 9 章の 2 を実施 |
+| Ghostty のソースビルドが Zig のバージョン差で失敗する | 070 で provisioning が止まる | Ghostty 1.2.3 + Zig 0.14.1 の組（プラグインが対応表を持つ）に落とす |
+| Ghostty のビルドに時間がかかる | `vagrant up` が長い | `VAGRANT_CPUS` を増やす。切り分け中は 070 だけ外して回す |
+| `release.files.ghostty.org` / `ziglang.org` が allowlist 外 | 070 で provisioning が止まる | 第 9 章の 2 を実施 |
 | GTK の text-input-v3 で preedit が見にくい | 入力はできるが体験が悪い | `fcitx5-frontend-gtk4` + `GTK_IM_MODULE=fcitx` に切り替え（Ghostty は別途対処） |
-| tty1 自動ログインの反映に再起動が要る | provisioning 直後は Hyprland が出ていない | `vagrant reload` を手順に含める |
+| GDM の反映に `graphical.target` への切り替えが要る | provisioning 直後はログイン画面が出ていない | `vagrant reload` を手順に含める |
+| GDM のグリーター（gnome-shell）が llvmpipe で重い | ログイン画面の描画が遅い | 解像度を下げる。許容できなければ GDM の自動ログインを有効にして通過を速くする |
 | `emacs` の user unit が Debian に無い | Emacs Client がメニューから起動しない | `~/.config/systemd/user/emacs.service` を自作する |
