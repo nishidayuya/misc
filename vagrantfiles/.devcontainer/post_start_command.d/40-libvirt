@@ -1,0 +1,83 @@
+#!/bin/sh
+
+# Bring up libvirt so that "vagrant up" can start a VM.
+#
+# There is no systemd in here, so the two daemons that libvirt's own units
+# would have started are started by hand. virtlogd goes first: libvirtd
+# connects to it when a guest is launched, and a guest started without it dies
+# with "Cannot open log file".
+#
+# The daemons are configured in .devcontainer/Dockerfile, which turns off
+# polkit authentication (there is no D-Bus system bus to reach polkitd on) and
+# runs qemu as root so that the 9p export of the workspace stays readable.
+
+set -eu
+
+LIBVIRT_DEFAULT_URI=qemu:///system
+export LIBVIRT_DEFAULT_URI
+
+# Without KVM, qemu falls back to emulating the CPU instruction by instruction
+# and a "vagrant up" that normally takes minutes takes hours. That is a
+# configuration error rather than something to work around silently, so say so
+# and stop.
+if ! test -c /dev/kvm
+then
+  echo "$0: /dev/kvm is missing." >&2
+  echo "$0: the container needs the host's KVM device to run VMs at native" >&2
+  echo "$0: speed. It normally arrives through the docker-in-docker feature's" >&2
+  echo "$0: privileged mode; check that the host has KVM enabled." >&2
+  exit 1
+fi
+
+# The two named volumes from devcontainer.json come up owned by root on first
+# creation. Only the mount points are adjusted: their contents are already
+# owned correctly, and a recursive chown over a populated box cache would cost
+# seconds on every container start. "install -d" also covers the case where the
+# volumes are not mounted at all and the directories have to be created.
+sudo install -d -o vscode -g vscode "${HOME}/.vagrant.d"
+sudo install -d -o root -g root -m 0711 /var/lib/libvirt/images
+
+for daemon in virtlogd libvirtd
+do
+  if pgrep -x "${daemon}" > /dev/null
+  then
+    continue
+  fi
+
+  echo "Starting ${daemon}..."
+  sudo "/usr/sbin/${daemon}" -d
+done
+
+echo "Waiting for libvirtd..."
+attempt=0
+until virsh version > /dev/null 2>&1
+do
+  attempt=$((attempt + 1))
+  if test "${attempt}" -gt 30
+  then
+    echo "$0: libvirtd did not become reachable at ${LIBVIRT_DEFAULT_URI}." >&2
+    echo "$0: run 'virsh version' to see the error. An authentication" >&2
+    echo "$0: failure means the vscode user is not in the libvirt group." >&2
+    exit 1
+  fi
+  sleep 1
+done
+
+# vagrant-libvirt stores box images and VM disks in the "default" storage pool.
+# Debian ships no pool definition, and the pool has to point at
+# /var/lib/libvirt/images specifically, because that is the path backed by a
+# named volume and therefore the only one that survives a container rebuild.
+if ! virsh pool-list --name --all | grep -q -x default
+then
+  echo "Defining the default storage pool..."
+  virsh pool-define-as --name default --type dir --target /var/lib/libvirt/images
+  virsh pool-autostart default
+fi
+
+if ! virsh pool-list --name | grep -q -x default
+then
+  echo "Starting the default storage pool..."
+  virsh pool-start default
+fi
+
+echo "libvirt is ready."

@@ -1,8 +1,13 @@
 {
-  "name": "Mise & Antigravity CLI Dev Container",
+  "name": "Vagrant & libvirt Dev Container",
   "build": {
     "dockerfile": "Dockerfile"
   },
+  // The workspace folder is vagrantfiles, but the mount has to start one level
+  // up: .git lives in the repository root, so mounting vagrantfiles alone
+  // would leave git unusable inside the container.
+  "workspaceMount": "source=${localWorkspaceFolder}/..,target=/workspaces/misc,type=bind,consistency=cached",
+  "workspaceFolder": "/workspaces/misc/vagrantfiles",
   "features": {
     // Pinned to 4 rather than 2: from 3.x on the feature picks the iptables
     // backend when the container starts instead of when the image is built, so
@@ -16,10 +21,27 @@
     }
   },
   "mounts": [
-    "source=${localEnv:DOT_DEVCONTAINER_HOME},target=/dev_container_home,type=bind,consistency=cached"
+    "source=${localEnv:DOT_DEVCONTAINER_HOME},target=/dev_container_home,type=bind,consistency=cached",
+    // Boxes and VM disks are expensive to fetch and build, so they live in
+    // named volumes and survive a container rebuild. Without these, "Rebuild
+    // Container" would throw away every downloaded box and every running VM.
+    "source=vagrantfiles-vagrant-home,target=/home/vscode/.vagrant.d,type=volume",
+    "source=vagrantfiles-libvirt-images,target=/var/lib/libvirt/images,type=volume"
   ],
   "containerEnv": {
-    "DOT_DEVCONTAINER_HOME": "/dev_container_home"
+    "DOT_DEVCONTAINER_HOME": "/dev_container_home",
+    // Every Vagrantfile here still carries a :virtualbox provider block for
+    // use on the host, so the provider is selected from the environment rather
+    // than from the Vagrantfile. That keeps "vagrant up" on the host
+    // unchanged.
+    "VAGRANT_DEFAULT_PROVIDER": "libvirt",
+    // vagrant-libvirt registers 9p at priority 4 and virtiofs at 5, which ties
+    // with Vagrant's own nfs and rsync, so an unspecified synced folder type
+    // resolves to whichever of them happens to sort first. The Vagrantfiles
+    // read this variable and pass it through as the type; leaving it unset, as
+    // it is on the host, keeps the provider default (vboxsf).
+    "VAGRANT_SYNCED_FOLDER_TYPE": "9p",
+    "LIBVIRT_DEFAULT_URI": "qemu:///system"
   },
   "capAdd": [
     "NET_ADMIN"
@@ -31,7 +53,12 @@
   "runArgs": [
     "--init",
     "--env-file",
-    "${localWorkspaceFolder}/.devcontainer/.env.additional"
+    "${localWorkspaceFolder}/.devcontainer/.env.additional",
+    // Redundant while the docker-in-docker feature runs the container
+    // privileged, which already exposes every host device, but it states the
+    // dependency this configuration actually has: without /dev/kvm, QEMU falls
+    // back to emulating the CPU and a "vagrant up" takes hours.
+    "--device=/dev/kvm"
   ],
   "overrideCommand": true,
   "postStartCommand": ".devcontainer/run-parts.sh .devcontainer/post_start_command.d",

@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# Let this container reach the VMs that vagrant-libvirt starts.
+#
+# 00-firewall ends the OUTPUT chain with a blanket REJECT and only opens ports
+# 80 and 443 to the allowlisted addresses, so every connection to a VM would
+# be refused -- including the ssh that "vagrant up" needs to provision the
+# machine and the one "vagrant ssh" opens.
+#
+# 192.168.121.0/24 is the subnet of the "vagrant-libvirt" management network
+# that the plugin creates for itself. It is a fixed default rather than
+# something read from libvirt, so these rules can be installed before the
+# network exists, which is the case until the first "vagrant up".
+
+set -eu
+
+VM_SUBNET=192.168.121.0/24
+
+# 00-firewall rebuilds the whole filter table, so on a normal container start
+# these rules are simply absent and get inserted. The check exists for the case
+# where this script is run again by hand, without 00-firewall before it.
+ensure_first_rule() {
+  chain="$1"
+  shift
+
+  if sudo iptables -C "${chain}" "$@" 2> /dev/null
+  then
+    return 0
+  fi
+
+  sudo iptables -I "${chain}" 1 "$@"
+}
+
+echo "Allowing traffic to and from ${VM_SUBNET}..."
+ensure_first_rule OUTPUT -d "${VM_SUBNET}" -j ACCEPT
+ensure_first_rule INPUT -s "${VM_SUBNET}" -j ACCEPT
