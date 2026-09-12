@@ -9,6 +9,26 @@ end
 mise_version = env_or_default("MISE_VERSION", "v2025.2.7")
 ruby_version = env_or_default("RUBY_VERSION", "3.4.2")
 
+# nil leaves the synced folder type to the provider, which is what happens on
+# the host: VirtualBox picks vboxsf. The Dev Container in ../.devcontainer sets
+# this to 9p, because vagrant-libvirt registers 9p and virtiofs at the same
+# priority as Vagrant's own nfs and rsync, and an unspecified type then
+# resolves to whichever of them happens to sort first.
+synced_folder_type = env_or_default("VAGRANT_SYNCED_FOLDER_TYPE", nil)
+
+# How to ask for a read-only synced folder depends on the implementation.
+# vboxsf takes Vagrant's standard :mount_options, while vagrant-libvirt's 9p
+# reads a :mount_opts string of its own and ignores :mount_options entirely --
+# so a folder that is read-only on the host would come up writable in the
+# guest. :readonly additionally marks the export read-only on the host side,
+# which is the half the guest cannot undo.
+read_only_synced_folder_options =
+  if synced_folder_type == "9p"
+    {readonly: true, mount_opts: "ro"}
+  else
+    {mount_options: %w[ro]}
+  end
+
 n_cpus = ENV.fetch("VAGRANT_CPUS") {
   require "etc"
   [1, Etc.nprocessors / 2].max
@@ -19,11 +39,23 @@ Vagrant.configure("2") do |config|
   config.vm.box = "debian/bookworm64"
   config.vm.box_version = "12.20250126.1"
 
-  config.vm.synced_folder("../_common", "/_common", mount_options: %w[ro])
+  # /vagrant is declared explicitly, which Vagrant would otherwise do itself,
+  # only so that it gets the same type as the folder below.
+  config.vm.synced_folder(".", "/vagrant", type: synced_folder_type)
+  config.vm.synced_folder("../_common", "/_common",
+                          type: synced_folder_type,
+                          **read_only_synced_folder_options)
 
   config.vm.provider(:virtualbox) do |vb|
     vb.cpus = n_cpus
     vb.memory = memory_mega_bytes
+  end
+
+  # Without this the VM would come up with libvirt's own defaults of one vCPU
+  # and 512MB, which is not enough to build Ruby in any reasonable time.
+  config.vm.provider(:libvirt) do |libvirt|
+    libvirt.cpus = n_cpus
+    libvirt.memory = memory_mega_bytes
   end
 
   config.vm.provision(:shell, privileged: false, inline: <<~SHELL)
