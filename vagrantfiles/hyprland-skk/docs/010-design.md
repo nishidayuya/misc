@@ -15,10 +15,15 @@ SKK で日本語入力ができる環境を Vagrant で再現可能にする。
 1. `vagrant up` が最後まで成功する。
 2. `vagrant ssh` でログインできる。
 3. 画面とキーボード操作の確認（第 10 章の表）がすべて通る。
+4. **`vagrant destroy -f` して作り直した回で、1 から 3 が何も手を加えずに通る。**
 
 3 は人が VNC クライアントを操作しなくてよい。`virsh screenshot` で画面を PNG として
 取り出し、`virsh send-key` でキーを送れるので、GDM のログインから日本語入力まで
 コンテナー内で自動的に確認できる（第 8 章）。よって繰返し修正ループの終了条件に含める。
+
+4 は、開発中の修正を `vagrant provision` や VM 内の手作業で当ててしまっていないか、
+`provision_scripts` だけで同じ状態が再現できるかを見るためのもの。ここで期待と違えば
+直してコミットし、また destroy からやり直す（第 10 章の手順 3）。
 
 ## 2. 前提環境と制約
 
@@ -510,6 +515,9 @@ vagrant ssh -c 'true'           # ログインできること
 失敗したら原因を直してコミットし、`vagrant destroy -f && vagrant up` で
 最初からやり直す。これを通るまで繰返す。
 
+切り分けの最中は `vagrant provision` で当該のスクリプトだけ回してもよい。
+そのぶん再現性が怪しくなるので、最後に手順 3 で作り直して確かめる。
+
 ### 手順 2: 画面とキーボードの確認
 
 `vagrant reload` で `graphical.target` に入れたあと、各段階でキーを送っては
@@ -544,6 +552,32 @@ fcitx5-diagnose                # IM の状態一式
 journalctl --user -u emacs     # Emacs デーモン
 ```
 
+### 手順 3: 作り直しての再現確認
+
+手順 1 と 2 が一通り通ったら、**VM を捨ててゼロから作り直し、同じ確認をやり直す**。
+
+```sh
+vagrant destroy -f
+vagrant up
+# 手順 1 の SSH 確認と、手順 2 の表をもういちど最初から通す
+```
+
+期待と違う結果が出たら、原因を直してコミットし、また `vagrant destroy -f` から
+やり直す。**これを、何も直さずに通る回が出るまで繰返す。** 手順 3 が一度も修正を
+挟まずに通った時点で完了とする。
+
+この手順を分けて置く理由は、手順 1・2 の途中では `vagrant provision` や
+`vagrant ssh` からの手作業で状態を直してしまいがちで、それが `provision_scripts` に
+反映されていなくても手順 2 は通ってしまうため。作り直した回が通ることだけが、
+スクリプトだけで環境が再現できる証拠になる。順序依存（あるスクリプトが前のスクリプトの
+副作用に頼っている）も、ここで初めて露見することが多い。
+
+box は `~/.vagrant.d`（名前付きボリューム）に残るので `vagrant destroy` しても
+再ダウンロードは起きない。一方 Ghostty のソースビルドは毎回やり直しになるので、
+1 周の所要時間はそこが支配的になる。
+
+通った回のスクリーンショットは、確認できた証拠としてそのまま残しておく。
+
 ## 11. コミット計画
 
 1. `feat(hyprland-skk): add a Vagrantfile that boots Debian GNU/Linux 13 on libvirt`
@@ -566,7 +600,7 @@ journalctl --user -u emacs     # Emacs デーモン
 | --- | --- | --- |
 | llvmpipe の描画が重い | Chromium のスクロールなどが遅い | 解像度を 1280x800 に落とす。アニメーション・blur は既に無効 |
 | Ghostty のソースビルドが Zig のバージョン差で失敗する | 070 で provisioning が止まる | Ghostty 1.2.3 + Zig 0.14.1 の組（プラグインが対応表を持つ）に落とす |
-| Ghostty のビルドに時間がかかる | `vagrant up` が長い | `VAGRANT_CPUS` を増やす。切り分け中は 070 だけ外して回す |
+| Ghostty のビルドに時間がかかる | `vagrant up` が長い、手順 3 の 1 周が長い | `VAGRANT_CPUS` を増やす。切り分け中は 070 だけ外して回し、手順 3 では必ず戻す |
 | `release.files.ghostty.org` / `ziglang.org` が allowlist 外 | 070 で provisioning が止まる | 第 9 章の 2 を実施 |
 | GTK の text-input-v3 で preedit が見にくい | 入力はできるが体験が悪い | `fcitx5-frontend-gtk4` + `GTK_IM_MODULE=fcitx` に切り替え（Ghostty は別途対処） |
 | GDM の反映に `graphical.target` への切り替えが要る | provisioning 直後はログイン画面が出ていない | `vagrant reload` を手順に含める |
