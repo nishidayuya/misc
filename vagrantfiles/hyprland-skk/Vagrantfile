@@ -33,7 +33,11 @@ n_cpus = ENV.fetch("VAGRANT_CPUS") {
   require "etc"
   [2, Etc.nprocessors / 2].max
 }
-memory_mega_bytes = ENV.fetch("VAGRANT_MEMORY", 1024 * 8).to_i
+# 4GB, not the 8GB the Vagrantfiles next door use: those build Ruby from
+# source, this one does not, and the container this runs in has 16GB to share
+# with whatever else is booted. A first attempt with 8GB was killed partway
+# through provisioning for running the host low on memory.
+memory_mega_bytes = ENV.fetch("VAGRANT_MEMORY", 1024 * 4).to_i
 graphics_port = ENV.fetch("VAGRANT_GRAPHICS_PORT", 5910).to_i
 
 Vagrant.configure("2") do |config|
