@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -eux -o pipefail
+
+# _common/libexec/install_ja_JP_locale is not reusable here: it installs
+# language-pack-ja, which only exists on Ubuntu. Debian generates locales from
+# /etc/locale.gen instead.
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends \
+  locales \
+  fonts-noto-cjk
+
+# Without a CJK font every application would show tofu, which would make the
+# input method impossible to check.
+
+sudo sed -i -e 's/^# *\(ja_JP\.UTF-8 UTF-8\)$/\1/' /etc/locale.gen
+if ! grep -q '^ja_JP\.UTF-8 UTF-8$' /etc/locale.gen
+then
+  echo 'ja_JP.UTF-8 UTF-8' | sudo tee -a /etc/locale.gen
+fi
+sudo locale-gen
+
+locale -a | grep -i '^ja_jp'
