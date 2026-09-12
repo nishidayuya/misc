@@ -1,0 +1,25 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+def env_or_default(env_name, default)
+  env_value = ENV.fetch(env_name, "")
+  return env_value.empty? ? default : env_value
+end
+
+# nil leaves the synced folder type to the provider. The Dev Container in
+# ../.devcontainer sets this to 9p, because vagrant-libvirt registers 9p and
+# virtiofs at the same priority as Vagrant's own nfs and rsync, and an
+# unspecified type then resolves to whichever of them happens to sort first.
+synced_folder_type = env_or_default("VAGRANT_SYNCED_FOLDER_TYPE", nil)
+
+Vagrant.configure("2") do |config|
+  # Debian publishes trixie for libvirt only: unlike bookworm, no virtualbox
+  # box was ever released for it, so there is no virtualbox provider block
+  # below.
+  config.vm.box = "debian/trixie64"
+  config.vm.box_version = "13.20260519.1"
+
+  # /vagrant is declared explicitly, which Vagrant would otherwise do itself,
+  # only so that it gets the type chosen above.
+  config.vm.synced_folder(".", "/vagrant", type: synced_folder_type)
+end
