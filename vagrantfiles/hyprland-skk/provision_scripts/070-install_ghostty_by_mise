@@ -1,0 +1,55 @@
+#!/bin/bash
+
+eval "$(~/.local/bin/mise activate bash --shims)"
+
+set -eux -o pipefail
+
+# Ghostty is not in mise's own registry, but the asdf community plugin is, and
+# mise speaks asdf. The plugin is added by its git URL rather than by its short
+# name, the way 025-install_git_by_mise in mise/ already does: resolving the
+# short name needs a host the Dev Container's allowlist does not carry.
+#
+# This plugin ships no binaries -- it runs "zig build" -- so Ghostty's own build
+# dependencies have to be here. All of them are in trixie.
+sudo apt-get install -y --no-install-recommends \
+  build-essential \
+  pkg-config \
+  git \
+  gettext \
+  libxml2-utils \
+  libgtk-4-dev \
+  libadwaita-1-dev \
+  libgtk4-layer-shell-dev \
+  libfontconfig-dev \
+  blueprint-compiler
+
+mise plugin install --force ghostty https://github.com/ilvez/asdf-ghostty
+
+# Zig first, and on PATH explicitly: the plugin calls "zig build" from its own
+# script, which does not inherit mise's shims.
+mise use --global "zig@${ZIG_VERSION}"
+PATH="$(mise where "zig@${ZIG_VERSION}")/bin:${PATH}"
+export PATH
+zig version
+
+mise use --global "ghostty@${GHOSTTY_VERSION}"
+mise ls
+
+# A wrapper with a fixed path, so that the Hyprland keybinding and the menu
+# entry can both name the same thing without knowing where mise put it.
+sudo tee /usr/local/bin/ghostty > /dev/null <<'WRAPPER'
+#!/bin/sh
+exec "${HOME}/.local/bin/mise" exec -- ghostty "$@"
+WRAPPER
+sudo chmod 0755 /usr/local/bin/ghostty
+
+mkdir -p ~/.local/share/applications
+cat > ~/.local/share/applications/ghostty.desktop <<'DESKTOP'
+[Desktop Entry]
+Type=Application
+Name=Ghostty
+Comment=A terminal emulator
+Exec=/usr/local/bin/ghostty
+Terminal=false
+Categories=System;TerminalEmulator;
+DESKTOP
