@@ -2,15 +2,20 @@
 
 set -eux -o pipefail
 
-# hyprland pulls the whole hypr* stack it needs; the rest is what the session
-# turns out to want around it.
+# Everything goes in one apt-get with -t trixie-backports, rather than pulling
+# hyprland from backports and the rest from trixie.
 #
-# libgl1-mesa-dri carries llvmpipe. The guest has a virtio GPU without virgl,
-# so Mesa falls back to kms_swrast and renders on the CPU.
+# Splitting them does not work: backports' hyprland brings backports' mesa and
+# libxkbcommon with it, and a second apt-get without -t then tries to satisfy
+# xdg-desktop-portal-hyprland with trixie's libxkbcommon-x11-0, which pins
+# libxkbcommon0 to the older version already replaced. apt gives up with
+# "Unable to correct problems, you have held broken packages". With one
+# invocation it can pick the backports build of each and stay consistent.
+#
+# libgl1-mesa-dri carries llvmpipe. The guest's virtio GPU has no virgl, so
+# Mesa falls back to kms_swrast and Hyprland renders on the CPU.
 sudo apt-get install -y --no-install-recommends -t trixie-backports \
-  hyprland
-
-sudo apt-get install -y --no-install-recommends \
+  hyprland \
   libgl1-mesa-dri \
   xdg-desktop-portal-hyprland \
   xdg-desktop-portal-gtk
