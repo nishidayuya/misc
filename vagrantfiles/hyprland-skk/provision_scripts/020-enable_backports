@@ -1,0 +1,21 @@
+#!/bin/bash
+
+set -eux -o pipefail
+
+# Hyprland is not in trixie itself, only in trixie-backports. Debian 13 reads
+# deb822 sources, so this is a .sources file rather than a line in
+# /etc/apt/sources.list.
+#
+# Nothing is pinned up: backports keeps a low priority by default, and the one
+# package that should come from here is asked for with "-t trixie-backports".
+sudo tee /etc/apt/sources.list.d/debian-backports.sources > /dev/null <<'SOURCES'
+Types: deb
+URIs: http://deb.debian.org/debian
+Suites: trixie-backports
+Components: main
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+SOURCES
+
+sudo apt-get update
+
+apt-cache policy hyprland

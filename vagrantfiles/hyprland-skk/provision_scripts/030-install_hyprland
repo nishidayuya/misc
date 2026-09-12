@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -eux -o pipefail
+
+# hyprland pulls the whole hypr* stack it needs; the rest is what the session
+# turns out to want around it.
+#
+# libgl1-mesa-dri carries llvmpipe. The guest has a virtio GPU without virgl,
+# so Mesa falls back to kms_swrast and renders on the CPU.
+sudo apt-get install -y --no-install-recommends -t trixie-backports \
+  hyprland
+
+sudo apt-get install -y --no-install-recommends \
+  libgl1-mesa-dri \
+  xdg-desktop-portal-hyprland \
+  xdg-desktop-portal-gtk
+
+Hyprland --version
+test -f /usr/share/wayland-sessions/hyprland.desktop
