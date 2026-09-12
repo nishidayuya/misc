@@ -9,7 +9,7 @@ set -eux -o pipefail
 # running both would convert twice.
 sudo apt-get install -y --no-install-recommends \
   emacs-pgtk \
-  elpa-ddskk
+  ddskk
 
 mkdir -p ~/.emacs.d
 cat > ~/.emacs.d/init.el <<'INIT_EL'
