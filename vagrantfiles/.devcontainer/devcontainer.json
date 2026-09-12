@@ -43,6 +43,13 @@
     "VAGRANT_SYNCED_FOLDER_TYPE": "9p",
     "LIBVIRT_DEFAULT_URI": "qemu:///system"
   },
+  // The VMs libvirt runs get their VNC console on this port (see
+  // hyprland-skk/Vagrantfile), which is how the desktop can be looked at from
+  // outside the container. The checks in hyprland-skk/docs/010-design.md do
+  // not need it: they go through "virsh screenshot" instead.
+  "forwardPorts": [
+    5910
+  ],
   "capAdd": [
     "NET_ADMIN"
   ],

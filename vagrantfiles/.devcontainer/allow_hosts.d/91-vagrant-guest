@@ -19,4 +19,13 @@ mise.run
 # "mise install ruby". Fastly-served, so 01-cdn-fastly covers the address
 # churn.
 cache.ruby-lang.org
+
+# Ghostty source tarballs. hyprland-skk builds Ghostty with the asdf-ghostty
+# plugin, which downloads from here rather than from a GitHub release. The
+# plugin only falls back to github.com for "ref:" installs.
+release.files.ghostty.org
+
+# Zig toolchains, downloaded by mise core:zig. Ghostty needs a specific zig to
+# build, and it is not in Debian.
+ziglang.org
 EOF
