@@ -1,0 +1,71 @@
+#!/bin/sh
+
+# Take a screenshot of the VM's console and print the path of the file.
+#
+# QEMU holds the framebuffer, so libvirt can hand the screen over directly and
+# no VNC client is involved. The companion to this is "virsh send-key", which
+# pushes evdev key events into the guest; between the two, the desktop can be
+# checked without anyone looking at it.
+#
+# An optional argument is used as a label in the file name, so that a sequence
+# of shots stays readable:
+#
+#   bin/screenshot after-super-q
+
+set -eu
+
+domain="${HYPRLAND_SKK_DOMAIN:-hyprland-skk_default}"
+output_directory="${HYPRLAND_SKK_SCREENSHOT_DIR:-/tmp/hyprland-skk-screenshots}"
+label="${1:-}"
+
+LIBVIRT_DEFAULT_URI="${LIBVIRT_DEFAULT_URI:-qemu:///system}"
+export LIBVIRT_DEFAULT_URI
+
+mkdir -p "${output_directory}"
+
+sequence="$(find "${output_directory}" -maxdepth 1 -name '[0-9]*' | wc -l)"
+sequence="$(printf '%03d' "$((sequence + 1))")"
+if test -n "${label}"
+then
+  basename="${sequence}-${label}"
+else
+  basename="${sequence}"
+fi
+
+# libvirt picks the format the hypervisor produced and prints it, so the
+# extension is not known until the shot has been taken. Write to a temporary
+# name first and rename it afterwards.
+temporary_file="${output_directory}/.${basename}.tmp"
+mime_type="$(virsh screenshot "${domain}" --file "${temporary_file}" |
+  sed -n -e 's/^Screenshot saved to .*, with type of //p')"
+
+case "${mime_type}" in
+  image/png)
+    extension=png
+    ;;
+  image/jpeg)
+    extension=jpg
+    ;;
+  image/x-portable-pixmap)
+    # Nothing can display a PPM, so convert it. netpbm is added to the Dev
+    # Container image for exactly this case; say so rather than leaving a file
+    # behind that cannot be read.
+    if ! command -v pnmtopng > /dev/null
+    then
+      echo "$0: the screenshot came back as PPM and pnmtopng is missing." >&2
+      echo "$0: install netpbm in .devcontainer/Dockerfile." >&2
+      exit 1
+    fi
+    pnmtopng < "${temporary_file}" > "${temporary_file}.png"
+    mv "${temporary_file}.png" "${temporary_file}"
+    extension=png
+    ;;
+  *)
+    echo "$0: unexpected screenshot type '${mime_type}'." >&2
+    exit 1
+    ;;
+esac
+
+file="${output_directory}/${basename}.${extension}"
+mv "${temporary_file}" "${file}"
+echo "${file}"
