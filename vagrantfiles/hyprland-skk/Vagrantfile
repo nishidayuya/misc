@@ -79,6 +79,12 @@ Vagrant.configure("2") do |config|
 
     export DEBIAN_FRONTEND=noninteractive
 
+    # run-parts exits 0 on a directory that is not there, so an unmounted
+    # /vagrant would look like a provisioning run that did nothing and
+    # succeeded. Which is exactly what happened once, after an interrupted
+    # "vagrant up" left the machine running with its 9p shares unmounted.
+    test -d /vagrant/provision_scripts
+
     exec run-parts --verbose --exit-on-error /vagrant/provision_scripts
   SHELL
 end
