@@ -2,8 +2,12 @@
 
 set -eux -o pipefail
 
+# fonts-font-awesome comes along because the configuration Debian ships uses
+# Font Awesome glyphs for every module icon, and without the font the bar is a
+# row of tofu.
 sudo apt-get install -y --no-install-recommends \
-  waybar
+  waybar \
+  fonts-font-awesome
 
 # The configuration Debian ships in /etc/xdg/waybar is used as it is; Hyprland
 # starts the bar from an exec-once in 110-configure_hyprland.
