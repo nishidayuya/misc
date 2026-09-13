@@ -138,9 +138,6 @@ docker volume rm vagrantfiles-vagrant-home vagrantfiles-libvirt-images
 
 ## 補足
 
-- **VNC に認証が無い**。コンテナー内で `0.0.0.0:5910` に出ているので、コンテナーの IP に
-  到達できる相手は誰でも画面を触れる。共用ホストで使うなら `Vagrantfile` の
-  `libvirt.graphics_ip` を `"127.0.0.1"` にして、上のポートフォワード経由だけで見る。
 - **描画は llvmpipe（CPU）**。virtio-gpu に 3D アクセラレーションを入れていないため、
   解像度を上げるほど重くなる。既定の 1920x1080 は `~/.config/hypr/hyprland.conf` の
   `monitor =` 行で変えられる（provisioning で上書きされるので、恒久的に変えるなら

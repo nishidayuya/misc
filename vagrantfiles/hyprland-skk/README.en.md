@@ -140,11 +140,6 @@ Set these before `vagrant up`.
 
 ## Notes
 
-- **The VNC console has no authentication.** It listens on `0.0.0.0:5910`
-  inside the container, so anything that can reach the container's address can
-  drive the screen. On a shared host, set `libvirt.graphics_ip` in the
-  `Vagrantfile` to `"127.0.0.1"` and reach it only through the port forward
-  above.
 - **Everything is drawn by llvmpipe on the CPU.** There is no 3D acceleration on
   the virtio GPU, so a higher resolution costs more. The default 1920x1080 comes
   from the `monitor =` line in `~/.config/hypr/hyprland.conf`; change

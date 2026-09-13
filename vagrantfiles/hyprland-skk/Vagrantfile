@@ -63,11 +63,13 @@ Vagrant.configure("2") do |config|
     # llvmpipe.
     libvirt.video_type = "virtio"
 
-    # The defaults are 127.0.0.1 and a random port. Both are pinned so that the
-    # VNC console can be reached from outside the container through a forwarded
-    # port.
+    # The port is pinned, but the address is left at loopback on purpose: the
+    # console carries no authentication, and this container is reached over ssh
+    # anyway, so a forwarded port is all it takes to see the screen from the
+    # host. Binding 0.0.0.0 would instead hand the desktop to anything that can
+    # route to the container.
     libvirt.graphics_type = "vnc"
-    libvirt.graphics_ip = "0.0.0.0"
+    libvirt.graphics_ip = "127.0.0.1"
     libvirt.graphics_port = graphics_port
   end
 
