@@ -1,5 +1,7 @@
 # hyprland-skk
 
+[English](README.en.md) | 日本語
+
 Debian GNU/Linux 13 (trixie) の上に Hyprland のデスクトップを作り、SKK で日本語入力が
 できる状態までを Vagrant で再現する。Emacs は DDSKK、Ghostty / Chromium / GNOME
 テキストエディターは Fcitx5-SKK で入力する。すべて Wayland ネイティブで動かしており、
