@@ -145,14 +145,6 @@ Set these before `vagrant up`.
   drive the screen. On a shared host, set `libvirt.graphics_ip` in the
   `Vagrantfile` to `"127.0.0.1"` and reach it only through the port forward
   above.
-- **To turn autologin off**, drop the execute bit so that `run-parts` skips the
-  script. GDM itself stays, so a login screen appears instead.
-
-  ```sh
-  chmod -x provision_scripts/130-enable_gdm_autologin
-  vagrant destroy -f && vagrant up
-  ```
-
 - **Everything is drawn by llvmpipe on the CPU.** There is no 3D acceleration on
   the virtio GPU, so a higher resolution costs more. The default 1920x1080 comes
   from the `monitor =` line in `~/.config/hypr/hyprland.conf`; change
