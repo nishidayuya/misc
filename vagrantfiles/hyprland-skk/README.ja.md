@@ -85,12 +85,14 @@ vncviewer localhost:5910
 
 | キー | 動作 |
 | --- | --- |
-| `Super+Q` | Ghostty を起動 |
-| `Super+R` | wofi のアプリケーションメニュー |
-| `Super+C` | ウィンドウを閉じる |
-| `Super+M` | Hyprland を終了 |
+| `右Alt+Q` | Ghostty を起動 |
+| `右Alt+R` | wofi のアプリケーションメニュー |
+| `右Alt+C` | ウィンドウを閉じる |
+| `右Alt+M` | Hyprland を終了 |
 | `Ctrl+Space` | Fcitx5 の入力メソッド切り替え（US キーボード ↔ SKK） |
 | `C-x C-j` | Emacs の中で DDSKK を有効にする |
+
+修飾キーは Super ではなく右 Alt。左 Alt は通常どおり使える。
 
 wofi からは Emacs Client / Ghostty / Chromium / テキストエディターが起動できる。
 GDM のログインが必要になった場合の資格情報は `vagrant` / `vagrant`。

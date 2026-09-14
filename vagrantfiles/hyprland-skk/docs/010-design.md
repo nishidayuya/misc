@@ -304,7 +304,7 @@ GNOME テキストエディターは GTK4 なので追加設定は不要（第 6
 ### 100-install_wofi
 
 `wofi` を APT で入れる。メニューは `wofi --show drun` で `.desktop` ファイルから作る。
-`Super+R` で起動する。並ぶべき 4 つの起動項目は次のとおり。
+`右Alt+R` で起動する。並ぶべき 4 つの起動項目は次のとおり。
 
 | 項目 | `.desktop` の出どころ |
 | --- | --- |
@@ -329,8 +329,12 @@ env = LIBGL_ALWAYS_SOFTWARE,1
 exec-once = fcitx5 -d
 exec-once = waybar
 
-bind = SUPER, Q, exec, /usr/local/bin/ghostty
-bind = SUPER, R, exec, wofi --show drun
+# X11 由来の modmask は左右の Alt を区別しないので、右 Alt を
+# ISO_Level3_Shift（MOD5）にして専用のマスクを与える
+input { kb_options = lv3:ralt_switch }
+
+bind = MOD5, Q, exec, /usr/local/bin/ghostty
+bind = MOD5, R, exec, wofi --show drun
 
 # llvmpipe で描くので、重い演出は切る
 animations { enabled = false }
@@ -462,8 +466,8 @@ domain=hyprland-skk_default
 virsh screenshot "${domain}" --file /tmp/hyprland-skk.png
 
 # キーを送る。codeset は既定の linux なので KEY_* の名前がそのまま使える
-virsh send-key "${domain}" KEY_LEFTMETA KEY_Q                    # Super+Q
-virsh send-key "${domain}" KEY_LEFTMETA KEY_R                    # Super+R
+virsh send-key "${domain}" KEY_RIGHTALT KEY_Q                    # 右Alt+Q
+virsh send-key "${domain}" KEY_RIGHTALT KEY_R                    # 右Alt+R
 virsh send-key "${domain}" --holdtime 50 KEY_LEFTCTRL KEY_SPACE  # Fcitx5 の切り替え
 ```
 
@@ -548,9 +552,9 @@ vagrant ssh -c 'true'           # ログインできること
 | --- | --- | --- |
 | 1 | （なし） | Hyprland のセッションが起動し、waybar が出ている |
 | 2 | 130 を外している場合のみ: `KEY_V` `KEY_A` `KEY_G` `KEY_R` `KEY_A` `KEY_N` `KEY_T` を 1 回ずつ、最後に `KEY_ENTER` | GDM のログイン画面から Hyprland のセッションに入る |
-| 3 | `KEY_LEFTMETA KEY_Q` | Ghostty のウィンドウが開く |
+| 3 | `KEY_RIGHTALT KEY_Q` | Ghostty のウィンドウが開く |
 | 4 | `KEY_LEFTCTRL KEY_SPACE` → `KEY_A` `KEY_I` `KEY_U` | Ghostty に「あいう」が出る（Fcitx5-SKK） |
-| 5 | `KEY_LEFTMETA KEY_R` | wofi が開き、Emacs Client / Ghostty / Chromium / テキストエディターの 4 項目が並ぶ |
+| 5 | `KEY_RIGHTALT KEY_R` | wofi が開き、Emacs Client / Ghostty / Chromium / テキストエディターの 4 項目が並ぶ |
 | 6 | `KEY_C` `KEY_H` → `KEY_ENTER` | Chromium が起動する |
 | 7 | アドレスバーで 4 と同じ手順 | 「あいう」が入る |
 | 8 | wofi からテキストエディターを起動し 4 と同じ手順 | 「あいう」が入る |

@@ -23,7 +23,11 @@ env = LIBGL_ALWAYS_SOFTWARE,1
 exec-once = fcitx5 -d
 exec-once = waybar
 
-$mainMod = SUPER
+# Hyprland's modifier masks come from X11 and do not tell the two Alt keys
+# apart: both are ALT. The right one is turned into ISO_Level3_Shift by
+# kb_options below, which gives it a mask of its own -- MOD5 -- while the left
+# Alt keeps ALT.
+$mainMod = MOD5
 
 bind = $mainMod, Q, exec, /usr/local/bin/ghostty
 bind = $mainMod, R, exec, wofi --show drun
@@ -37,6 +41,10 @@ bind = $mainMod, down, movefocus, d
 
 input {
   kb_layout = us
+  # Right Alt becomes ISO_Level3_Shift, so that $mainMod above has a modifier
+  # to bind to. The us layout defines no third level, so nothing types
+  # differently because of it.
+  kb_options = lv3:ralt_switch
   follow_mouse = 1
 }
 
