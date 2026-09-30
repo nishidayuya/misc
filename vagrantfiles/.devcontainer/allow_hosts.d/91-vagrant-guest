@@ -1,0 +1,31 @@
+#!/bin/sh
+
+set -eu
+
+# Hosts the guest VMs reach while they are being provisioned, rather than ones
+# this container needs itself. They matter because 46-vagrant-vm-egress holds
+# the VMs to this same allowlist.
+#
+# The rest of what the provisioning scripts under vagrantfiles/*/provision_scripts
+# use is already covered: Debian's archive by 30-debian, GitHub (mise's own
+# releases, its plugin registry and nishidayuya/asdf-git) by 00-github, rustup
+# and crates.io by 80-rust, and Git's source tarballs by 70-git-scm.
+sed -E -e '/^\s*#|^\s*$/ d' <<EOF
+# _common/libexec/install_mise runs "curl https://mise.run | sh", and mise.run
+# is a different host from the mise.jdx.dev that 50-mise allows.
+mise.run
+
+# Ruby source tarballs, downloaded by the ruby-build that backs
+# "mise install ruby". Fastly-served, so 01-cdn-fastly covers the address
+# churn.
+cache.ruby-lang.org
+
+# Ghostty source tarballs. hyprland-skk builds Ghostty with the asdf-ghostty
+# plugin, which downloads from here rather than from a GitHub release. The
+# plugin only falls back to github.com for "ref:" installs.
+release.files.ghostty.org
+
+# Zig toolchains, downloaded by mise core:zig. Ghostty needs a specific zig to
+# build, and it is not in Debian.
+ziglang.org
+EOF

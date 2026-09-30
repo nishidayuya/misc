@@ -1,0 +1,33 @@
+#!/bin/bash
+
+set -eux -o pipefail
+
+# Hyprland needs a seat to take the DRM master. An ssh session has none, so it
+# cannot be started from "vagrant ssh"; GDM opens a logind session on seat0 and
+# that is the whole reason a display manager is here.
+#
+# Recommends are left on: the greeter is gnome-shell and pulling gdm3 bare
+# leaves it without pieces it needs at runtime.
+sudo apt-get install -y \
+  gdm3
+
+# Vagrant boxes boot to multi-user.target.
+sudo systemctl set-default graphical.target
+
+# Pick the session for the user up front, so that GDM does not have to be told
+# through its gear menu -- which matters because the checks in
+# docs/010-design.md drive it by keyboard only.
+sudo install -d -m 0775 /var/lib/AccountsService/users
+sudo tee /var/lib/AccountsService/users/vagrant > /dev/null <<'ACCOUNTS_SERVICE'
+[User]
+Session=hyprland
+SystemAccount=false
+ACCOUNTS_SERVICE
+
+# accounts-daemon caches what it has read, and installing gdm3 above starts it.
+# By the time the file lands, the daemon is already answering for this user with
+# no session set, so GDM autologs into GNOME -- which is installed alongside the
+# greeter -- and Hyprland never runs. Re-reading the file fixes the choice.
+sudo systemctl try-restart accounts-daemon.service
+
+systemctl is-enabled gdm3.service

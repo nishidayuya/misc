@@ -1,0 +1,8 @@
+#!/bin/sh
+
+set -eux
+
+# runArgs passes this file to --env-file, so it must exist before the container
+# is created.
+test -f .devcontainer/.env.additional ||
+  touch .devcontainer/.env.additional

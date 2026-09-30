@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -eux -o pipefail
+
+sudo apt-get install -y --no-install-recommends \
+  wofi
+
+# "wofi --show drun" builds its menu from .desktop files. Chromium and GNOME
+# Text Editor ship theirs; Emacs Client and Ghostty got one written for them in
+# 050 and 070.
+ls ~/.local/share/applications/

@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -eux -o pipefail
+
+# No -t is needed: 020-enable_backports raised backports to the same priority
+# as trixie, so apt takes the newest version of each of these on its own.
+#
+# libgl1-mesa-dri carries llvmpipe. The guest's virtio GPU has no virgl, so
+# Mesa falls back to kms_swrast and Hyprland renders on the CPU.
+sudo apt-get install -y --no-install-recommends \
+  hyprland \
+  hyprland-guiutils \
+  libgl1-mesa-dri \
+  xdg-desktop-portal-hyprland \
+  xdg-desktop-portal-gtk
+
+Hyprland --version
+test -f /usr/share/wayland-sessions/hyprland.desktop

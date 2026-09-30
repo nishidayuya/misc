@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -eux -o pipefail
+
+sudo apt-get install -y --no-install-recommends \
+  chromium \
+  gnome-text-editor
+
+# Debian's /usr/bin/chromium sources every file in /etc/chromium.d before
+# launching, which is the supported place to add flags.
+#
+# --ozone-platform=x11 is explicitly not used: with --enable-wayland-ime and
+# text-input version 3, Chromium reaches fcitx5 over the Wayland protocol and
+# stays off XWayland.
+sudo tee /etc/chromium.d/wayland-ime > /dev/null <<'FLAGS'
+# Run on Wayland and take input through text-input-v3, so that fcitx5 works
+# without an IM module and without falling back to X11.
+export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --ozone-platform=wayland"
+export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --enable-wayland-ime"
+export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --wayland-text-input-version=3"
+
+# Without this, the first start pops up gnome-keyring's "Choose password for
+# new keyring" dialog and waits behind it, because Chromium wants somewhere to
+# put saved passwords. Nothing in this VM has passwords worth keeping, and a
+# modal dialog in front of the browser defeats the point of starting it.
+export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --password-store=basic"
+FLAGS
+
+# GNOME Text Editor is GTK4 and needs nothing: with GTK_IM_MODULE unset it uses
+# GTK's built-in Wayland input method.

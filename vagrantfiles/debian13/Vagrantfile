@@ -1,0 +1,17 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+def env_or_default(env_name, default)
+  env_value = ENV.fetch(env_name, "")
+  return env_value.empty? ? default : env_value
+end
+
+ENV["VAGRANT_DEFAULT_PROVIDER"] = env_or_default("VAGRANT_DEFAULT_PROVIDER", "libvirt")
+synced_folder_type = env_or_default("VAGRANT_SYNCED_FOLDER_TYPE", "9p")
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "debian/trixie64"
+  config.vm.box_version = "13.20260519.1"
+
+  config.vm.synced_folder(".", "/vagrant", type: synced_folder_type)
+end

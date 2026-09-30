@@ -1,0 +1,31 @@
+#!/bin/sh
+
+set -eu
+
+# GitLab.com
+#
+# The web UI, the REST API (https://gitlab.com/api/v4) and git over HTTPS are
+# all served from this one domain, so creating a merge request with "glab mr
+# create" and re-running a pipeline with "glab ci retry" need nothing else.
+#
+# Only ports 80 and 443 are opened, so git has to reach GitLab over HTTPS:
+# 00-firewall grants port 22 to github.com alone, and pushing over SSH would
+# mean generalizing that rule and scanning GitLab's host keys in
+# post_start_command.d/20-known-hosts as well.
+#
+# Unlike GitHub, GitLab publishes no list of the IP ranges that serve
+# gitlab.com: it sits behind Cloudflare, and the only addresses GitLab
+# documents are the outbound ones its CI runners connect from. The domain is
+# therefore left to 00-firewall to resolve, like any ordinary entry here, which
+# holds up in practice because Cloudflare answers with a stable anycast
+# address. Should that ever start rotating and leave a later connection
+# rejected with a bare "connection refused", the fix is to allow Cloudflare's
+# published ranges (https://www.cloudflare.com/ips-v4) the way 01-cdn-fastly
+# does for Fastly -- at the price of opening 80 and 443 to everything else
+# hosted behind that CDN.
+#
+# CI artifacts, job logs and LFS objects are redirected to Google Cloud
+# Storage, which 20-google already covers through the goog.json ranges.
+cat <<EOF
+gitlab.com
+EOF

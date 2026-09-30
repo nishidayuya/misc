@@ -1,0 +1,60 @@
+#!/bin/sh
+
+set -eu
+
+# Vagrant Cloud. Downloading a box walks a chain of redirects, and every host
+# on it has to be allowed or the download dies partway through with "Could not
+# connect to server":
+#
+#   vagrantcloud.com                (metadata, then a 302 to itself)
+#   api.cloud.hashicorp.com         (307 to a signed URL; the registry moved
+#                                    to HCP and this hop is easy to miss,
+#                                    because it only appears once the download
+#                                    of the box file itself starts)
+#   vagrantcloud-files-production.s3-accelerate.amazonaws.com
+#
+# app.vagrantup.com is the older name of the first host, still what some
+# Vagrantfiles and Vagrant versions ask for, and answers with a redirect.
+#
+# ip-ranges.amazonaws.com is emitted as a domain as well, so that fetching the
+# range list below still works when postStartCommand runs again in a container
+# whose firewall is already up. Same reasoning as api.fastly.com in
+# 01-cdn-fastly.
+cat <<EOF
+vagrantcloud.com
+app.vagrantup.com
+api.cloud.hashicorp.com
+ip-ranges.amazonaws.com
+EOF
+
+# AWS CloudFront and S3 IP ranges (IPv4 only)
+#
+# https://docs.aws.amazon.com/vpc/latest/userguide/aws-ip-ranges.html
+#
+# Box files come from vagrantcloud-files-production.s3-accelerate.amazonaws.com,
+# and S3 Transfer Acceleration runs on CloudFront's edge network: that name
+# resolves into ranges AWS publishes as CLOUDFRONT, not as S3 (13.249.0.0/16 at
+# the time of writing). The plain vagrantcloud-files-production.s3.amazonaws.com
+# endpoint, which a download can land on instead, sits in S3's own ranges, so
+# both services are allowed.
+#
+# Resolving the hostname once, the way 00-firewall does for an ordinary entry
+# here, is not enough: an edge name answers with one address out of a large
+# pool, and the address a later connection gets would be rejected with a bare
+# "connection refused" in the middle of a several-hundred-megabyte download.
+#
+# The trade-off is the one 01-cdn-fastly already makes: CloudFront and S3 are
+# shared, so this opens ports 80 and 443 to anything hosted on them.
+#
+# Same reasoning as in 00-github for fetching into a file: piping curl into
+# another command reports only the last command's status, so an error response
+# would leave the range list empty and still exit 0.
+ranges_json="$(mktemp)"
+trap 'rm -f "${ranges_json}"' EXIT
+
+curl --fail --silent --show-error --retry 3 --retry-all-errors \
+  https://ip-ranges.amazonaws.com/ip-ranges.json > "${ranges_json}"
+
+jq -r '.prefixes[] | select(.service == "CLOUDFRONT" or .service == "S3") | .ip_prefix' < "${ranges_json}" |
+  grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' |
+  sort -u

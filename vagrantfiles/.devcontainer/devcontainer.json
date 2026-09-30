@@ -1,0 +1,83 @@
+{
+  "name": "Vagrant & libvirt Dev Container",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  // The workspace folder is vagrantfiles, but the mount has to start one level
+  // up: .git lives in the repository root, so mounting vagrantfiles alone
+  // would leave git unusable inside the container.
+  "workspaceMount": "source=${localWorkspaceFolder}/..,target=/workspaces/misc,type=bind,consistency=cached",
+  "workspaceFolder": "/workspaces/misc/vagrantfiles",
+  "features": {
+    // Pinned to 4 rather than 2: from 3.x on the feature picks the iptables
+    // backend when the container starts instead of when the image is built, so
+    // it lands on nft on a host whose kernel no longer carries the legacy
+    // ip_tables module. Ubuntu 26.04, which the arm64 CI leg runs on, is such a
+    // host, and post_start_command.d/00-firewall needs iptables-restore to work
+    // there.
+    "ghcr.io/devcontainers/features/docker-in-docker:4": {
+      "version": "latest",
+      "moby": false
+    }
+  },
+  "mounts": [
+    "source=${localEnv:DOT_DEVCONTAINER_HOME},target=/dev_container_home,type=bind,consistency=cached",
+    // Boxes and VM disks are expensive to fetch and build, so they live in
+    // named volumes and survive a container rebuild. Without these, "Rebuild
+    // Container" would throw away every downloaded box and every running VM.
+    "source=vagrantfiles-vagrant-home,target=/home/vscode/.vagrant.d,type=volume",
+    "source=vagrantfiles-libvirt-images,target=/var/lib/libvirt/images,type=volume"
+  ],
+  "containerEnv": {
+    "DOT_DEVCONTAINER_HOME": "/dev_container_home",
+    // Every Vagrantfile here still carries a :virtualbox provider block for
+    // use on the host, so the provider is selected from the environment rather
+    // than from the Vagrantfile. That keeps "vagrant up" on the host
+    // unchanged.
+    "VAGRANT_DEFAULT_PROVIDER": "libvirt",
+    // vagrant-libvirt registers 9p at priority 4 and virtiofs at 5, which ties
+    // with Vagrant's own nfs and rsync, so an unspecified synced folder type
+    // resolves to whichever of them happens to sort first. The Vagrantfiles
+    // read this variable and pass it through as the type; leaving it unset, as
+    // it is on the host, keeps the provider default (vboxsf).
+    "VAGRANT_SYNCED_FOLDER_TYPE": "9p",
+    "LIBVIRT_DEFAULT_URI": "qemu:///system"
+  },
+  // The VMs libvirt runs get their VNC console on this port (see
+  // hyprland-skk/Vagrantfile), which is how the desktop can be looked at from
+  // outside the container. The checks in hyprland-skk/docs/010-design.md do
+  // not need it: they go through "virsh screenshot" instead.
+  "forwardPorts": [
+    5910
+  ],
+  "capAdd": [
+    "NET_ADMIN"
+  ],
+  "initializeCommand": ".devcontainer/run-parts.sh .devcontainer/initialize_command.d",
+  // The path has to be absolute: the Dev Container CLI resolves runArgs
+  // relative to the workspace folder, but DevPod runs "docker run" from its own
+  // agent directory, where a relative path does not exist.
+  "runArgs": [
+    "--init",
+    "--env-file",
+    "${localWorkspaceFolder}/.devcontainer/.env.additional",
+    // Redundant while the docker-in-docker feature runs the container
+    // privileged, which already exposes every host device, but it states the
+    // dependency this configuration actually has: without /dev/kvm, QEMU falls
+    // back to emulating the CPU and a "vagrant up" takes hours.
+    "--device=/dev/kvm"
+  ],
+  "overrideCommand": true,
+  "postStartCommand": ".devcontainer/run-parts.sh .devcontainer/post_start_command.d",
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode-remote.remote-containers",
+        "shopify.ruby-lsp",
+        "dbaeumer.vscode-eslint"
+      ]
+    }
+  }
+}

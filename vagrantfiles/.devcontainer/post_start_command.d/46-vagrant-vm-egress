@@ -1,0 +1,125 @@
+#!/bin/sh
+
+# Hold the VMs to the same allowlist as the container itself.
+#
+# 00-firewall restricts what the container can reach by filtering OUTPUT, which
+# only covers packets the container generates. A VM's traffic is routed rather
+# than generated here: it enters on the libvirt bridge, traverses FORWARD and
+# leaves masqueraded. Nothing in OUTPUT applies to it, so without this script a
+# guest reaches the whole internet from inside a container that cannot.
+#
+# The rules go into an nftables table of their own rather than into iptables,
+# for two reasons.
+#
+# Ordering. libvirt puts its own jumps at the head of the filter FORWARD chain
+# and one of them accepts the guest subnet outright:
+#
+#   -A LIBVIRT_FWO -s 192.168.121.0/24 -i virbr1 -j ACCEPT
+#
+# ACCEPT terminates the traversal, so a rule appended to FORWARD is never
+# reached, and a rule inserted at the head only stays there until libvirt sets
+# its chains up again -- which it does when a network starts, i.e. on the first
+# "vagrant up". A chain of our own on an earlier hook priority cannot be
+# displaced like that. The mangle table would have done as well, except that
+# REJECT is a filter-table target and mangle can only DROP, which would leave a
+# blocked guest waiting out a TCP timeout instead of failing immediately.
+#
+# Size. The allowlist expands to some 13000 address-port pairs, which iptables
+# would evaluate one rule at a time for every packet. nftables puts the
+# addresses in a set per port and matches them in one step.
+#
+# The allowlist itself is not resolved a second time. 00-firewall has already
+# turned every entry in allow_hosts.d into OUTPUT rules, so those rules are
+# read back and re-expressed here: one resolution, one source of truth, and no
+# chance of the two lists drifting apart because a domain answered with a
+# different address the second time around.
+#
+# To stop restricting the VMs, make this script non-executable:
+#
+#   chmod -x .devcontainer/post_start_command.d/46-vagrant-vm-egress
+#
+# run-parts skips it from then on. Reaching the VMs stays working either way:
+# that is 45-vagrant-vm-access, which is a separate script for this reason.
+
+set -eu
+
+VM_SUBNET=192.168.121.0/24
+TABLE='inet vagrant_vm_egress'
+
+rules_file="$(mktemp)"
+trap 'rm -f "${rules_file}"' EXIT
+
+{
+  # Naming the table before deleting it makes the delete work whether or not
+  # it is already there, and the whole file is loaded atomically, so the
+  # restriction is never briefly absent.
+  echo "table ${TABLE}"
+  echo "delete table ${TABLE}"
+  echo "table ${TABLE} {"
+  echo '  chain forward {'
+
+  # Ahead of the filter table, where libvirt's accept sits, and after
+  # conntrack, so that ct state is available. The policy is accept because a
+  # packet that gets past this chain still has the rest of the ruleset to
+  # clear.
+  echo '    type filter hook forward priority -200; policy accept;'
+
+  # Everything that is not a guest leaves this chain immediately. The
+  # containers that the docker-in-docker feature runs are forwarded through
+  # here too, and filtering them would break their networking.
+  echo "    ip saddr != ${VM_SUBNET} accept"
+
+  # Return traffic for a connection the guest already opened.
+  echo '    ct state established,related accept'
+
+  # DNS, as unrestricted as 00-firewall leaves it for the container. Queries
+  # normally go to the dnsmasq that libvirt runs on the bridge, which is not
+  # forwarded at all, but a guest configured with an external resolver should
+  # not silently lose name resolution.
+  echo '    udp dport 53 accept'
+  echo '    tcp dport 53 accept'
+
+  # Every address 00-firewall allowed, on the port it allowed it on. The rules
+  # are read as fields rather than matched as a whole line, because iptables
+  # prints them in its own normalized order.
+  sudo iptables -S OUTPUT |
+    awk '
+      $1 == "-A" && $2 == "OUTPUT" && $NF == "ACCEPT" {
+        address = ""
+        protocol = ""
+        port = ""
+        for (i = 3; i < NF; i++) {
+          if ($i == "-d") {
+            address = $(i + 1)
+          } else if ($i == "-p") {
+            protocol = $(i + 1)
+          } else if ($i == "--dport") {
+            port = $(i + 1)
+          }
+        }
+        if (address == "" || protocol == "" || port == "") {
+          next
+        }
+        key = protocol " " port
+        addresses[key] = addresses[key] (addresses[key] == "" ? "" : ", ") address
+      }
+      END {
+        for (key in addresses) {
+          split(key, parts, " ")
+          printf("    ip daddr { %s } %s dport %s accept\n",
+                 addresses[key], parts[1], parts[2])
+        }
+      }
+    '
+
+  # Same intent as the tail of 00-firewall: a TCP reset so that the guest fails
+  # fast with "connection refused" instead of waiting out a timeout.
+  echo '    meta l4proto tcp reject with tcp reset'
+  echo '    reject'
+
+  echo '  }'
+  echo '}'
+} > "${rules_file}"
+
+echo "Restricting ${VM_SUBNET} to the allowlist..."
+sudo nft -f "${rules_file}"

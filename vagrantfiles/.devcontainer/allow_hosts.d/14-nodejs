@@ -1,0 +1,8 @@
+#!/bin/sh
+
+set -eu
+
+# Node.js runtimes are downloaded from nodejs.org by "mise use -g node@<version>"
+cat <<EOF
+nodejs.org
+EOF

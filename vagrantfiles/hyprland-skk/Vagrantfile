@@ -1,0 +1,92 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+def env_or_default(env_name, default)
+  env_value = ENV.fetch(env_name, "")
+  return env_value.empty? ? default : env_value
+end
+
+# This box only makes sense on libvirt: Hyprland needs a virtio GPU, which
+# VirtualBox does not have. There is therefore no :virtualbox provider block
+# below, unlike in the other Vagrantfiles here.
+ENV["VAGRANT_DEFAULT_PROVIDER"] = env_or_default("VAGRANT_DEFAULT_PROVIDER", "libvirt")
+synced_folder_type = env_or_default("VAGRANT_SYNCED_FOLDER_TYPE", "9p")
+
+# How to ask for a read-only synced folder depends on the implementation.
+# vagrant-libvirt's 9p reads a :mount_opts string of its own and ignores
+# Vagrant's standard :mount_options entirely, so a folder that is read-only on
+# the host would come up writable in the guest.
+read_only_synced_folder_options =
+  if synced_folder_type == "9p"
+    {readonly: true, mount_opts: "ro"}
+  else
+    {mount_options: %w[ro]}
+  end
+
+# The plugin that builds Ghostty maps ghostty versions to zig versions only up
+# to 1.2.x, so both are pinned here rather than left at "latest": 1.3.1
+# declares minimum_zig_version 0.15.2 in its build.zig.zon.
+ghostty_version = env_or_default("GHOSTTY_VERSION", "1.3.1")
+zig_version = env_or_default("ZIG_VERSION", "0.15.2")
+
+n_cpus = ENV.fetch("VAGRANT_CPUS") {
+  require "etc"
+  [2, Etc.nprocessors / 2].max
+}
+# 4GB, not the 8GB the Vagrantfiles next door use: those build Ruby from
+# source, this one does not, and the container this runs in has 16GB to share
+# with whatever else is booted. A first attempt with 8GB was killed partway
+# through provisioning for running the host low on memory.
+memory_mega_bytes = ENV.fetch("VAGRANT_MEMORY", 1024 * 4).to_i
+graphics_port = ENV.fetch("VAGRANT_GRAPHICS_PORT", 5910).to_i
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "debian/trixie64"
+  config.vm.box_version = "13.20260519.1"
+
+  config.vm.synced_folder(".", "/vagrant", type: synced_folder_type)
+  config.vm.synced_folder("../_common", "/_common",
+                          type: synced_folder_type,
+                          **read_only_synced_folder_options)
+
+  config.vm.provider(:libvirt) do |libvirt|
+    libvirt.cpus = n_cpus
+    libvirt.memory = memory_mega_bytes
+
+    # cirrus, which vagrant-libvirt uses by default, emulates 4MB of VRAM and
+    # tops out around 1024x768. virtio-gpu passes whatever mode the guest asks
+    # for straight to the host instead, so the resolution is not capped.
+    #
+    # 3D acceleration (virgl) is deliberately left off: it requires SPICE with
+    # graphics_gl, and a GL-enabled SPICE cannot listen on TCP, which rules out
+    # looking at the screen from outside this container. Rendering falls to
+    # llvmpipe.
+    libvirt.video_type = "virtio"
+
+    # The port is pinned, but the address is left at loopback on purpose: the
+    # console carries no authentication, and this container is reached over ssh
+    # anyway, so a forwarded port is all it takes to see the screen from the
+    # host. Binding 0.0.0.0 would instead hand the desktop to anything that can
+    # route to the container.
+    libvirt.graphics_type = "vnc"
+    libvirt.graphics_ip = "127.0.0.1"
+    libvirt.graphics_port = graphics_port
+  end
+
+  config.vm.provision(:shell, privileged: false, inline: <<~SHELL)
+    set -eux -o pipefail
+
+    export GHOSTTY_VERSION=#{ghostty_version}
+    export ZIG_VERSION=#{zig_version}
+
+    export DEBIAN_FRONTEND=noninteractive
+
+    # run-parts exits 0 on a directory that is not there, so an unmounted
+    # /vagrant would look like a provisioning run that did nothing and
+    # succeeded. Which is exactly what happened once, after an interrupted
+    # "vagrant up" left the machine running with its 9p shares unmounted.
+    test -d /vagrant/provision_scripts
+
+    exec run-parts --verbose --exit-on-error /vagrant/provision_scripts
+  SHELL
+end
