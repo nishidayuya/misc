@@ -91,7 +91,7 @@ vncviewer localhost:5910
 | `Right Alt+R` | wofi's application menu |
 | `Right Alt+C` | Close the window |
 | `Right Alt+M` | Exit Hyprland |
-| `Ctrl+Space` | Switch Fcitx5's input method (US keyboard ↔ SKK) |
+| `Shift+Space` | Switch Fcitx5's input method (US keyboard ↔ SKK) |
 | `C-x C-j` | Turn DDSKK on inside Emacs |
 
 The modifier is the right Alt, not Super. The left Alt is unaffected.

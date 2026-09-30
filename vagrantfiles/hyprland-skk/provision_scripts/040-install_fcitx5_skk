@@ -13,8 +13,8 @@ sudo apt-get install -y --no-install-recommends \
   skkdic
 
 # Writing the profile here avoids the first-run dance of adding an input method
-# by hand. Group 0 holds the US keyboard and SKK, in that order, so Ctrl+Space
-# toggles between them and a fresh session starts in Latin.
+# by hand. Group 0 holds the US keyboard and SKK, in that order, so the trigger
+# key below toggles between them and a fresh session starts in Latin.
 mkdir -p ~/.config/fcitx5/conf
 cat > ~/.config/fcitx5/profile <<'PROFILE'
 [Groups/0]
@@ -33,6 +33,14 @@ Layout=
 [GroupOrder]
 0=Default
 PROFILE
+
+# Shift+Space replaces fcitx5's default trigger keys (Ctrl+Space and
+# Zenkaku_Hankaku) rather than adding to them. Anything left out of this file
+# keeps its default.
+cat > ~/.config/fcitx5/config <<'CONFIG'
+[Hotkey/TriggerKeys]
+0=Shift+space
+CONFIG
 
 # Romaji to kana needs no dictionary at all; the dictionary only comes into it
 # for kanji conversion, and fcitx5-skk finds skkdic's SKK-JISYO.L on its own.

@@ -199,6 +199,8 @@ GTK / Qt の IM モジュール（`fcitx5-frontend-gtk4` など）は **入れ�
 
 - `~/.config/fcitx5/profile` … `[Groups/0/Items/0] Name=keyboard-us` と
   `[Groups/0/Items/1] Name=skk` を並べ、既定の入力メソッドに SKK を登録する。
+- `~/.config/fcitx5/config` … `[Hotkey/TriggerKeys]` を `0=Shift+space` にし、
+  入力メソッドの切り替えを既定の Ctrl+Space から Shift+Space に変える。
 - `~/.config/fcitx5/conf/skk.conf` … 辞書に `/usr/share/skk/SKK-JISYO.L` を指定する。
 
 ### 050-install_emacs_ddskk
@@ -468,7 +470,7 @@ virsh screenshot "${domain}" --file /tmp/hyprland-skk.png
 # キーを送る。codeset は既定の linux なので KEY_* の名前がそのまま使える
 virsh send-key "${domain}" KEY_RIGHTALT KEY_Q                    # 右Alt+Q
 virsh send-key "${domain}" KEY_RIGHTALT KEY_R                    # 右Alt+R
-virsh send-key "${domain}" --holdtime 50 KEY_LEFTCTRL KEY_SPACE  # Fcitx5 の切り替え
+virsh send-key "${domain}" --holdtime 50 KEY_LEFTSHIFT KEY_SPACE # Fcitx5 の切り替え
 ```
 
 `bin/screenshot` は上を包んで連番のファイル名で `/tmp` に落とし、撮ったパスを表示する
@@ -553,7 +555,7 @@ vagrant ssh -c 'true'           # ログインできること
 | 1 | （なし） | Hyprland のセッションが起動し、waybar が出ている |
 | 2 | 130 を外している場合のみ: `KEY_V` `KEY_A` `KEY_G` `KEY_R` `KEY_A` `KEY_N` `KEY_T` を 1 回ずつ、最後に `KEY_ENTER` | GDM のログイン画面から Hyprland のセッションに入る |
 | 3 | `KEY_RIGHTALT KEY_Q` | Ghostty のウィンドウが開く |
-| 4 | `KEY_LEFTCTRL KEY_SPACE` → `KEY_A` `KEY_I` `KEY_U` | Ghostty に「あいう」が出る（Fcitx5-SKK） |
+| 4 | `KEY_LEFTSHIFT KEY_SPACE` → `KEY_A` `KEY_I` `KEY_U` | Ghostty に「あいう」が出る（Fcitx5-SKK） |
 | 5 | `KEY_RIGHTALT KEY_R` | wofi が開き、Emacs Client / Ghostty / Chromium / テキストエディターの 4 項目が並ぶ |
 | 6 | `KEY_C` `KEY_H` → `KEY_ENTER` | Chromium が起動する |
 | 7 | アドレスバーで 4 と同じ手順 | 「あいう」が入る |

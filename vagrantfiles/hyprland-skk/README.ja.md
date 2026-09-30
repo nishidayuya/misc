@@ -89,7 +89,7 @@ vncviewer localhost:5910
 | `右Alt+R` | wofi のアプリケーションメニュー |
 | `右Alt+C` | ウィンドウを閉じる |
 | `右Alt+M` | Hyprland を終了 |
-| `Ctrl+Space` | Fcitx5 の入力メソッド切り替え（US キーボード ↔ SKK） |
+| `Shift+Space` | Fcitx5 の入力メソッド切り替え（US キーボード ↔ SKK） |
 | `C-x C-j` | Emacs の中で DDSKK を有効にする |
 
 修飾キーは Super ではなく右 Alt。左 Alt は通常どおり使える。
