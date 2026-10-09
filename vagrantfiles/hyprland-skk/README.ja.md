@@ -141,7 +141,7 @@ docker volume rm vagrantfiles-vagrant-home vagrantfiles-libvirt-images
 ## 補足
 
 - **描画は llvmpipe（CPU）**。virtio-gpu に 3D アクセラレーションを入れていないため、
-  解像度を上げるほど重くなる。既定の 1920x1080 は `~/.config/hypr/hyprland.conf` の
+  解像度を上げるほど重くなる。既定の 1920x1080 は `~/.config/hypr/hyprland.lua` の
   `monitor =` 行で変えられる（provisioning で上書きされるので、恒久的に変えるなら
   `provision_scripts/110-configure_hyprland` を編集する）。
 - **VM の中を CLI で見る**には `vagrant ssh`。Hyprland の状態は

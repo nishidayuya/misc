@@ -144,7 +144,7 @@ Set these before `vagrant up`.
 
 - **Everything is drawn by llvmpipe on the CPU.** There is no 3D acceleration on
   the virtio GPU, so a higher resolution costs more. The default 1920x1080 comes
-  from the `monitor =` line in `~/.config/hypr/hyprland.conf`; change
+  from the `hl.monitor` call in `~/.config/hypr/hyprland.lua`; change
   `provision_scripts/110-configure_hyprland` to make it stick, since
   provisioning rewrites that file.
 - **To look inside the VM from a shell**, use `vagrant ssh`. Hyprland's state

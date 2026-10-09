@@ -352,7 +352,7 @@ GNOME テキストエディターは GTK4 なので追加設定は不要（第 6
 
 ### 090-install_waybar
 
-`waybar` と `fonts-font-awesome` を APT で入れ、Hyprland の `exec-once` から起動する。
+`waybar` と `fonts-font-awesome` を APT で入れ、Hyprland の `hyprland.start` イベントから起動する。
 設定は Debian 同梱の `/etc/xdg/waybar/` をそのまま使い、必要なら後から
 `~/.config/waybar/` に持ってくる。同梱の設定はモジュールのアイコンに Font Awesome の
 グリフを使うので、フォントが無いとアイコンがすべて豆腐になる。
@@ -373,48 +373,45 @@ GNOME テキストエディターは GTK4 なので追加設定は不要（第 6
 
 ### 110-configure_hyprland
 
-`~/.config/hypr/hyprland.conf` を生成する。要点だけ示す。
+`~/.config/hypr/hyprland.lua` を生成する。Hyprland 0.55 から設定は Lua で書けるようになり、
+`hyprland.lua` があれば `hyprland.conf` より優先される。以前の provisioning で作った
+`hyprland.conf` は読まれなくなるので、紛らわしくないように削除する。要点だけ示す。
 
-```
-# モニター名は空にして、virtio-gpu のコネクター名が何であっても当てはまるようにする
-monitor = , 1920x1080@60, 0x0, 1
+```lua
+-- モニター名は空にして、virtio-gpu のコネクター名が何であっても当てはまるようにする
+hl.monitor({ output = "", mode = "1920x1080@60", position = "0x0", scale = "1" })
 
-# 日本語入力: GTK_IM_MODULE / QT_IM_MODULE はあえて設定しない（第 6 章）
-env = XMODIFIERS,@im=fcitx
-env = LIBGL_ALWAYS_SOFTWARE,1
+-- 日本語入力: GTK_IM_MODULE / QT_IM_MODULE はあえて設定しない（第 6 章）
+hl.env("XMODIFIERS", "@im=fcitx")
+hl.env("LIBGL_ALWAYS_SOFTWARE", "1")
 
-exec-once = fcitx5 -d
-exec-once = waybar
+-- exec-once に相当する。トップレベルの hl.exec_cmd() は再読み込みのたびに走る
+hl.on("hyprland.start", function()
+    hl.exec_cmd("fcitx5 -d")
+    hl.exec_cmd("waybar")
+end)
 
-# X11 由来の modmask は左右の Alt を区別しないので、右 Alt を
-# ISO_Level3_Shift（MOD5）にして専用のマスクを与える
-$mainMod = MOD5
-input {
-  kb_layout = us
-  kb_options = lv3:ralt_switch
-}
+-- X11 由来の modmask は左右の Alt を区別しないので、右 Alt を
+-- ISO_Level3_Shift（MOD5）にして専用のマスクを与える
+local mainMod = "MOD5"
 
-bind = $mainMod, Q, exec, /usr/local/bin/ghostty
-bind = $mainMod, R, exec, wofi --show drun
-bind = $mainMod, C, killactive,
-bind = $mainMod, M, exit,
-bind = $mainMod, V, togglefloating,
-bind = $mainMod, left, movefocus, l   # right / up / down も同様
+hl.bind(mainMod .. " + Q",    hl.dsp.exec_cmd("/usr/local/bin/ghostty"))
+hl.bind(mainMod .. " + R",    hl.dsp.exec_cmd("wofi --show drun"))
+hl.bind(mainMod .. " + C",    hl.dsp.window.close())
+hl.bind(mainMod .. " + M",    hl.dsp.exit())
+hl.bind(mainMod .. " + V",    hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mainMod .. " + left", hl.dsp.focus({ direction = "left" })) -- right / up / down も同様
 
-# llvmpipe で描くので、重い演出は切る
-animations { enabled = false }
-decoration {
-  rounding = 0
-  blur { enabled = false }
-  shadow { enabled = false }
-}
-misc {
-  disable_hyprland_logo = true
-  disable_splash_rendering = true
-}
+hl.config({
+    input = { kb_layout = "us", kb_options = "lv3:ralt_switch", follow_mouse = 1 },
+    -- llvmpipe で描くので、重い演出は切る
+    animations = { enabled = false },
+    decoration = { rounding = 0, blur = { enabled = false }, shadow = { enabled = false } },
+    misc = { disable_hyprland_logo = true, disable_splash_rendering = true },
+})
 ```
 
-当初は `misc { vfr = true }` も入れる予定だったが、Hyprland 0.55 にはこのオプションが
+当初は `misc = { vfr = true }` も入れる予定だったが、Hyprland 0.55 にはこのオプションが
 もう無い。未知のキーは無視されず、設定エラーのバナーとして画面上部に出続ける
 （スクリーンショットでの確認の邪魔にもなる）ので入れない。
 
