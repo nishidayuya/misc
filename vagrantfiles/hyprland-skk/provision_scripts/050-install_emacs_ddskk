@@ -30,6 +30,8 @@ cat > ~/.emacs.d/init.el <<'INIT_EL'
 (setq default-input-method "japanese-skk")
 (setq skk-large-jisyo "/usr/share/skk/SKK-JISYO.L")
 (global-set-key (kbd "C-x C-j") 'skk-mode)
+;; "．" and "，" rather than "。" and "、"; fcitx5-skk is set to match in 040.
+(setq skk-kutouten-type 'en)
 INIT_EL
 
 # The menu entry starts a client and, with -a "", a daemon on first use, so it

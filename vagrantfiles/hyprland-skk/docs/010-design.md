@@ -239,7 +239,8 @@ GTK / Qt の IM モジュール（`fcitx5-frontend-gtk4` など）は **入れ�
   あわせて `[Hotkey/TogglePreedit]` を見出しだけ書いて空にする。既定の Ctrl+Alt+P
   （埋め込みプリエディットの切り替え）は US キーボードのときでも fcitx5 が奪うので、
   Emacs の `C-M-p` が届かなくなるため。見出しごと省くと既定に戻る。
-- `~/.config/fcitx5/conf/skk.conf` … `InitialInputMode=Hiragana` だけを書く。
+- `~/.config/fcitx5/conf/skk.conf` … `InitialInputMode=Hiragana` と `PunctuationStyle=Latin` を書く。
+  後者は句読点を「．」「，」にする（名前に反して全角。libskk の `EN_EN` にあたる）。
   辞書は fcitx5-skk が `skkdic` の `SKK-JISYO.L` を自分で見つけるので指定しない。
 
 ### 050-install_emacs_ddskk
@@ -254,6 +255,7 @@ GTK / Qt の IM モジュール（`fcitx5-frontend-gtk4` など）は **入れ�
 (setq default-input-method "japanese-skk")
 (setq skk-large-jisyo "/usr/share/skk/SKK-JISYO.L")
 (global-set-key (kbd "C-x C-j") 'skk-mode)
+(setq skk-kutouten-type 'en) ; 句読点は「．」「，」
 ```
 
 Emacs では Fcitx5 を使わない。Emacs は DDSKK 自身が入力を処理するので、

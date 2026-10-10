@@ -51,7 +51,12 @@ CONFIG
 
 # Romaji to kana needs no dictionary at all; the dictionary only comes into it
 # for kanji conversion, and fcitx5-skk finds skkdic's SKK-JISYO.L on its own.
-# Only the mode SKK starts in is worth stating.
+# What is stated is the mode SKK starts in and the punctuation.
+#
+# PunctuationStyle=Latin is the full-width "．" and "，", not ASCII: the names
+# come from libskk's EN_EN, and "Wide latin" is in fact "。" with "，". This
+# matches DDSKK's skk-kutouten-type 'en in 050.
 cat > ~/.config/fcitx5/conf/skk.conf <<'SKK_CONF'
 InitialInputMode=Hiragana
+PunctuationStyle=Latin
 SKK_CONF
