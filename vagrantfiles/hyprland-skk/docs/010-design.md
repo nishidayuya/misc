@@ -239,9 +239,15 @@ GTK / Qt の IM モジュール（`fcitx5-frontend-gtk4` など）は **入れ�
   あわせて `[Hotkey/TogglePreedit]` を見出しだけ書いて空にする。既定の Ctrl+Alt+P
   （埋め込みプリエディットの切り替え）は US キーボードのときでも fcitx5 が奪うので、
   Emacs の `C-M-p` が届かなくなるため。見出しごと省くと既定に戻る。
-- `~/.config/fcitx5/conf/skk.conf` … `InitialInputMode=Hiragana` と `PunctuationStyle=Latin` を書く。
-  後者は句読点を「．」「，」にする（名前に反して全角。libskk の `EN_EN` にあたる）。
+- `~/.config/fcitx5/conf/skk.conf` … `InitialInputMode=Hiragana`、`PunctuationStyle=Latin`、
+  `Rule=my-default` を書く。`PunctuationStyle=Latin` は句読点を「．」「，」にする
+  （名前に反して全角。libskk の `EN_EN` にあたる）。
   辞書は fcitx5-skk が `skkdic` の `SKK-JISYO.L` を自分で見つけるので指定しない。
+- `~/.config/libskk/rules/my-default/` … 記号の入力を 050 の DDSKK の
+  `skk-rom-kana-rule-list` に揃える libskk のルール。`metadata.json` と
+  `rom-kana/default.json` だけを置き、後者は `default/default` を `include` して
+  `@` `!` `~` `(` `)` などの差分だけを上書きする。`keymap/` を置かなければ標準の
+  キーマップが使われる。`hh` / `mm` は libskk の標準ルールがもともと「っ」にするので書かない。
 
 ### 050-install_emacs_ddskk
 
@@ -256,6 +262,7 @@ GTK / Qt の IM モジュール（`fcitx5-frontend-gtk4` など）は **入れ�
 (setq skk-large-jisyo "/usr/share/skk/SKK-JISYO.L")
 (global-set-key (kbd "C-x C-j") 'skk-mode)
 (setq skk-kutouten-type 'en) ; 句読点は「．」「，」
+(setq skk-rom-kana-rule-list ...) ; 記号の入力。040 の libskk のルールと揃える
 ```
 
 Emacs では Fcitx5 を使わない。Emacs は DDSKK 自身が入力を処理するので、

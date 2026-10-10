@@ -49,9 +49,51 @@ cat > ~/.config/fcitx5/config <<'CONFIG'
 [Hotkey/TogglePreedit]
 CONFIG
 
+# The symbols follow the skk-rom-kana-rule-list that 050 gives DDSKK: "@", "!",
+# "~", "(" and ")" turn full-width, z plus a symbol gives the ASCII one, and
+# "z," and "z." give "、" and "。" now that the plain keys give "，" and "．".
+# libskk takes such changes as a rule of its own, found under
+# ~/.config/libskk/rules. Including default/default and overriding only these
+# keys leaves the rest of the standard rule alone, and with no keymap/ directory
+# the standard keymaps are used. "hh" and "mm" are not repeated: libskk's
+# standard rule already turns them into "っ".
+mkdir -p ~/.config/libskk/rules/my-default/rom-kana
+cat > ~/.config/libskk/rules/my-default/metadata.json <<'METADATA_JSON'
+{
+    "name": "Default (customized)",
+    "description": "Default typing rule with symbols matched to DDSKK"
+}
+METADATA_JSON
+cat > ~/.config/libskk/rules/my-default/rom-kana/default.json <<'ROM_KANA_JSON'
+{
+    "include": [
+        "default/default"
+    ],
+    "define": {
+        "rom-kana": {
+            "@": ["", "＠"],
+            ":": ["", "："],
+            ";": ["", "；"],
+            "?": ["", "？"],
+            "!": ["", "！"],
+            "~": ["", "〜"],
+            "z@": ["", "@"],
+            "z:": ["", ":"],
+            "z;": ["", ";"],
+            "z?": ["", "?"],
+            "z!": ["", "!"],
+            "z,": ["", "、"],
+            "z.": ["", "。"],
+            "(": ["", "（"],
+            ")": ["", "）"]
+        }
+    }
+}
+ROM_KANA_JSON
+
 # Romaji to kana needs no dictionary at all; the dictionary only comes into it
 # for kanji conversion, and fcitx5-skk finds skkdic's SKK-JISYO.L on its own.
-# What is stated is the mode SKK starts in and the punctuation.
+# What is stated is the mode SKK starts in, the punctuation and the rule above.
 #
 # PunctuationStyle=Latin is the full-width "．" and "，", not ASCII: the names
 # come from libskk's EN_EN, and "Wide latin" is in fact "。" with "，". This
@@ -59,4 +101,5 @@ CONFIG
 cat > ~/.config/fcitx5/conf/skk.conf <<'SKK_CONF'
 InitialInputMode=Hiragana
 PunctuationStyle=Latin
+Rule=my-default
 SKK_CONF

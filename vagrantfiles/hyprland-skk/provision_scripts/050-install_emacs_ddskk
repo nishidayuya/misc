@@ -32,6 +32,27 @@ cat > ~/.emacs.d/init.el <<'INIT_EL'
 (global-set-key (kbd "C-x C-j") 'skk-mode)
 ;; "．" and "，" rather than "。" and "、"; fcitx5-skk is set to match in 040.
 (setq skk-kutouten-type 'en)
+;; Symbols. fcitx5-skk gets the same through a libskk rule in 040.
+(setq skk-rom-kana-rule-list    ; skk-def.el を参考
+      '(
+        ("@" nil "＠")    ; 日付表示しない
+        (":" nil "：")    ; 変更前と同じだけど...
+        (";" nil "；")    ; 変更前と同じだけど...
+        ("?" nil "？")    ; 変更前と同じだけど...
+        ("!" nil "！")    ; "!" を上書き
+        ("~" nil "〜")
+        ("z@" nil "@")
+        ("z:" nil ":")
+        ("z;" nil ";")
+        ("z?" nil "?")
+        ("z!" nil "!")
+        ("z," nil "、")    ; "‥" を上書き
+        ("z." nil "。")    ; "…" を上書き
+        ("hh" "h" ("ッ" . "っ"))    ; "hh" を "っh" にする
+        ("mm" "m" ("ッ" . "っ"))    ; "mm" を "っm" にする
+        ("(" nil "（")    ; 全角に
+        (")" nil "）")    ; 全角に
+        ))
 INIT_EL
 
 # The menu entry starts a client and, with -a "", a daemon on first use, so it
