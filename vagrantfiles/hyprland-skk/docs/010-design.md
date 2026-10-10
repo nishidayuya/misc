@@ -236,9 +236,6 @@ GTK / Qt の IM モジュール（`fcitx5-frontend-gtk4` など）は **入れ�
   切り替えキーで SKK に移る。
 - `~/.config/fcitx5/config` … `[Hotkey/TriggerKeys]` を `0=Shift+space` にし、
   入力メソッドの切り替えを既定の Ctrl+Space から Shift+Space に変える。
-  あわせて `[Hotkey/TogglePreedit]` を見出しだけ書いて空にする。既定の Ctrl+Alt+P
-  （埋め込みプリエディットの切り替え）は US キーボードのときでも fcitx5 が奪うので、
-  Emacs の `C-M-p` が届かなくなるため。見出しごと省くと既定に戻る。
 - `~/.config/fcitx5/conf/skk.conf` … `InitialInputMode=Hiragana`、`PunctuationStyle=Latin`、
   `Rule=my-default` を書く。`PunctuationStyle=Latin` は句読点を「．」「，」にする
   （名前に反して全角。libskk の `EN_EN` にあたる）。

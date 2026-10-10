@@ -37,16 +37,9 @@ PROFILE
 # Shift+Space replaces fcitx5's default trigger keys (Ctrl+Space and
 # Zenkaku_Hankaku) rather than adding to them. Anything left out of this file
 # keeps its default.
-#
-# TogglePreedit is emptied: its default, Ctrl+Alt+P, is taken by fcitx5 before
-# any input method sees it -- even with the US keyboard active -- so Emacs never
-# gets C-M-p. The section header alone, with no keys under it, is what makes
-# the list empty; leaving the section out would bring the default back.
 cat > ~/.config/fcitx5/config <<'CONFIG'
 [Hotkey/TriggerKeys]
 0=Shift+space
-
-[Hotkey/TogglePreedit]
 CONFIG
 
 # The symbols follow the skk-rom-kana-rule-list that 050 gives DDSKK: "@", "!",
