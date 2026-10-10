@@ -407,8 +407,8 @@ hl.env("LIBGL_ALWAYS_SOFTWARE", "1")
 
 -- exec-once に相当する。トップレベルの hl.exec_cmd() は再読み込みのたびに走る
 hl.on("hyprland.start", function()
-    hl.exec_cmd("fcitx5 -d")
-    hl.exec_cmd("waybar")
+  hl.exec_cmd("fcitx5 -d")
+  hl.exec_cmd("waybar")
 end)
 
 -- X11 由来の modmask は左右の Alt を区別しないので、右 Alt を
@@ -423,11 +423,11 @@ hl.bind(mainMod .. " + V",    hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + left", hl.dsp.focus({ direction = "left" })) -- right / up / down も同様
 
 hl.config({
-    input = { kb_layout = "us", kb_options = "lv3:ralt_switch", follow_mouse = 1 },
-    -- llvmpipe で描くので、重い演出は切る
-    animations = { enabled = false },
-    decoration = { rounding = 0, blur = { enabled = false }, shadow = { enabled = false } },
-    misc = { disable_hyprland_logo = true, disable_splash_rendering = true },
+  input = { kb_layout = "us", kb_options = "lv3:ralt_switch", follow_mouse = 1 },
+  -- llvmpipe で描くので、重い演出は切る
+  animations = { enabled = false },
+  decoration = { rounding = 0, blur = { enabled = false }, shadow = { enabled = false } },
+  misc = { disable_hyprland_logo = true, disable_splash_rendering = true },
 })
 ```
 

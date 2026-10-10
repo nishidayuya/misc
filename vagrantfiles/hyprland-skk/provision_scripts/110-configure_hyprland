@@ -14,10 +14,10 @@ cat > ~/.config/hypr/hyprland.lua <<'HYPRLAND_LUA'
 -- calls its connector. 1920x1080 is asked for explicitly rather than taking
 -- "preferred", because virtio-gpu passes any mode through to the host.
 hl.monitor({
-    output   = "",
-    mode     = "1920x1080@60",
-    position = "0x0",
-    scale    = "1",
+  output   = "",
+  mode     = "1920x1080@60",
+  position = "0x0",
+  scale    = "1",
 })
 
 -- Japanese input.
@@ -34,8 +34,8 @@ hl.env("LIBGL_ALWAYS_SOFTWARE", "1")
 -- hyprland.start fires once per session, as exec-once did. A bare
 -- hl.exec_cmd() at the top level would run again on every reload.
 hl.on("hyprland.start", function()
-    hl.exec_cmd("fcitx5 -d")
-    hl.exec_cmd("waybar")
+  hl.exec_cmd("fcitx5 -d")
+  hl.exec_cmd("waybar")
 end)
 
 -- Hyprland's modifier masks come from X11 and do not tell the two Alt keys
@@ -55,35 +55,35 @@ hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
 hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
 
 hl.config({
-    input = {
-        kb_layout = "us",
-        -- Right Alt becomes ISO_Level3_Shift, so that mainMod above has a
-        -- modifier to bind to. The us layout defines no third level, so
-        -- nothing types differently because of it.
-        kb_options   = "lv3:ralt_switch",
-        follow_mouse = 1,
-    },
+  input = {
+    kb_layout = "us",
+    -- Right Alt becomes ISO_Level3_Shift, so that mainMod above has a
+    -- modifier to bind to. The us layout defines no third level, so
+    -- nothing types differently because of it.
+    kb_options   = "lv3:ralt_switch",
+    follow_mouse = 1,
+  },
 
-    -- Everything is drawn on the CPU, so the expensive effects are off.
-    animations = {
-        enabled = false,
-    },
+  -- Everything is drawn on the CPU, so the expensive effects are off.
+  animations = {
+    enabled = false,
+  },
 
-    decoration = {
-        rounding = 0,
-        blur = {
-            enabled = false,
-        },
-        shadow = {
-            enabled = false,
-        },
+  decoration = {
+    rounding = 0,
+    blur = {
+      enabled = false,
     },
+    shadow = {
+      enabled = false,
+    },
+  },
 
-    -- No vfr here: Hyprland 0.55 does not have that option any more, and an
-    -- unknown key is a startup error banner across the top of the screen.
-    misc = {
-        disable_hyprland_logo    = true,
-        disable_splash_rendering = true,
-    },
+  -- No vfr here: Hyprland 0.55 does not have that option any more, and an
+  -- unknown key is a startup error banner across the top of the screen.
+  misc = {
+    disable_hyprland_logo    = true,
+    disable_splash_rendering = true,
+  },
 })
 HYPRLAND_LUA
