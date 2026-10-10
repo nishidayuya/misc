@@ -60,34 +60,34 @@ CONFIG
 mkdir -p ~/.config/libskk/rules/my-default/rom-kana
 cat > ~/.config/libskk/rules/my-default/metadata.json <<'METADATA_JSON'
 {
-    "name": "Default (customized)",
-    "description": "Default typing rule with symbols matched to DDSKK"
+  "name": "Default (customized)",
+  "description": "Default typing rule with symbols matched to DDSKK"
 }
 METADATA_JSON
 cat > ~/.config/libskk/rules/my-default/rom-kana/default.json <<'ROM_KANA_JSON'
 {
-    "include": [
-        "default/default"
-    ],
-    "define": {
-        "rom-kana": {
-            "@": ["", "＠"],
-            ":": ["", "："],
-            ";": ["", "；"],
-            "?": ["", "？"],
-            "!": ["", "！"],
-            "~": ["", "〜"],
-            "z@": ["", "@"],
-            "z:": ["", ":"],
-            "z;": ["", ";"],
-            "z?": ["", "?"],
-            "z!": ["", "!"],
-            "z,": ["", "、"],
-            "z.": ["", "。"],
-            "(": ["", "（"],
-            ")": ["", "）"]
-        }
+  "include": [
+    "default/default"
+  ],
+  "define": {
+    "rom-kana": {
+      "@": ["", "＠"],
+      ":": ["", "："],
+      ";": ["", "；"],
+      "?": ["", "？"],
+      "!": ["", "！"],
+      "~": ["", "〜"],
+      "z@": ["", "@"],
+      "z:": ["", ":"],
+      "z;": ["", ";"],
+      "z?": ["", "?"],
+      "z!": ["", "!"],
+      "z,": ["", "、"],
+      "z.": ["", "。"],
+      "(": ["", "（"],
+      ")": ["", "）"]
     }
+  }
 }
 ROM_KANA_JSON
 
