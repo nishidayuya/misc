@@ -257,8 +257,19 @@ GTK / Qt の IM モジュール（`fcitx5-frontend-gtk4` など）は **入れ�
 ```
 
 Emacs では Fcitx5 を使わない。Emacs は DDSKK 自身が入力を処理するので、
-Fcitx5 を併用すると変換が二重になる。フォーカスが Emacs にあるときは
-Fcitx5 を無効にしておく運用とする。
+Fcitx5 を併用すると変換が二重になる。ただ使わないだけでは足りず、emacs-pgtk は
+既定で GtkIMContext 経由でキーを受け取るので、Wayland では text-input-v3 を通して
+Fcitx5 につながってしまう。そこで `~/.emacs.d/early-init.el` に次を書き、
+IM コンテキストを作らせない。
+
+```elisp
+(setq pgtk-use-im-context-on-new-connection nil)
+```
+
+こうすると Fcitx5 は Emacs にフォーカスがあることを知らないままになり、Fcitx5 の
+ホットキー（Shift+Space、Ctrl+Alt+P など）も普通のキーとして Emacs に届く。
+この変数はディスプレイに接続する時点で読まれる。`emacs` を普通に起動すると
+`init.el` より前に接続するため、`init.el` ではなく `early-init.el` に書く。
 
 メニュー用に `~/.local/share/applications/emacsclient.desktop` をここで作る。
 `Exec=emacsclient -c -a "" %F` としておくと、デーモンが動いていなければ初回に
@@ -521,7 +532,7 @@ X11 に落とすと XWayland 上での描画になり、virtio-gpu + llvmpipe �
 
 | アプリケーション | 入力方式 | 備考 |
 | --- | --- | --- |
-| Emacs (emacs-pgtk) | DDSKK | `C-x C-j` で SKK モード |
+| Emacs (emacs-pgtk) | DDSKK | `C-x C-j` で SKK モード。GtkIMContext を切って Fcitx5 から外す |
 | Ghostty | Fcitx5-SKK | GTK4 / text-input-v3 |
 | Chromium | Fcitx5-SKK | `--enable-wayland-ime` |
 | GNOME テキストエディター | Fcitx5-SKK | GTK4 / text-input-v3 |
