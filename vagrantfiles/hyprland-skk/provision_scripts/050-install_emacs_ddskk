@@ -12,11 +12,47 @@ sudo apt-get install -y --no-install-recommends \
   ddskk
 
 mkdir -p ~/.emacs.d
+
+# Keeping fcitx5 out takes more than not using it: emacs-pgtk takes its keys
+# through a GtkIMContext by default, which on Wayland is text-input-v3 and so
+# fcitx5. Without the context, fcitx5 never learns that Emacs has focus, and
+# its hotkeys (Shift+Space, Ctrl+Alt+P, ...) reach Emacs as ordinary keys.
+#
+# The variable is read when Emacs connects to the display. A plain "emacs"
+# does that before init.el is loaded, so it goes in early-init.el.
+cat > ~/.emacs.d/early-init.el <<'EARLY_INIT_EL'
+;; No GtkIMContext, so no fcitx5: Japanese input is DDSKK's job.
+(setq pgtk-use-im-context-on-new-connection nil)
+EARLY_INIT_EL
+
 cat > ~/.emacs.d/init.el <<'INIT_EL'
 ;; DDSKK. C-x C-j turns it on; skkdic provides the large dictionary.
 (setq default-input-method "japanese-skk")
 (setq skk-large-jisyo "/usr/share/skk/SKK-JISYO.L")
 (global-set-key (kbd "C-x C-j") 'skk-mode)
+;; "．" and "，" rather than "。" and "、"; fcitx5-skk is set to match in 040.
+(setq skk-kutouten-type 'en)
+;; Symbols. fcitx5-skk gets the same through a libskk rule in 040.
+(setq skk-rom-kana-rule-list    ; skk-def.el を参考
+      '(
+        ("@" nil "＠")    ; 日付表示しない
+        (":" nil "：")    ; 変更前と同じだけど...
+        (";" nil "；")    ; 変更前と同じだけど...
+        ("?" nil "？")    ; 変更前と同じだけど...
+        ("!" nil "！")    ; "!" を上書き
+        ("~" nil "〜")
+        ("z@" nil "@")
+        ("z:" nil ":")
+        ("z;" nil ";")
+        ("z?" nil "?")
+        ("z!" nil "!")
+        ("z," nil "、")    ; "‥" を上書き
+        ("z." nil "。")    ; "…" を上書き
+        ("hh" "h" ("ッ" . "っ"))    ; "hh" を "っh" にする
+        ("mm" "m" ("ッ" . "っ"))    ; "mm" を "っm" にする
+        ("(" nil "（")    ; 全角に
+        (")" nil "）")    ; 全角に
+        ))
 INIT_EL
 
 # The menu entry starts a client and, with -a "", a daemon on first use, so it
