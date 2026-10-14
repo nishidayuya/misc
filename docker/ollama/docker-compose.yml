@@ -6,7 +6,7 @@ services:
     volumes:
       - ollama:/root/.ollama
     ports:
-      - "127.0.0.1:11434:11434"
+      - "${OLLAMA_PORT:-127.0.0.1:11434}:11434"
 
 volumes:
   ollama:
