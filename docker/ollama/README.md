@@ -6,7 +6,7 @@ play Ollama
 
 ```console
 $ docker compose up -d &&
-    docker compose exec ollama ollama run llama3 'hi, who are you?'
+    docker compose exec ollama ollama run llama3.2 'hi, who are you?'
 ```
 
 ## NVIDIA GPU mode
@@ -23,7 +23,7 @@ Then stack `docker-compose.nvidia-gpu.yml` on `docker-compose.yml`:
 ```console
 $ export COMPOSE_FILE=docker-compose.yml:docker-compose.nvidia-gpu.yml
 $ docker compose up -d &&
-    docker compose exec ollama ollama run llama3 'hi, who are you?'
+    docker compose exec ollama ollama run llama3.2 'hi, who are you?'
 ```
 
 `docker compose exec ollama ollama ps` shows `100% GPU` in the `PROCESSOR` column when the model runs on the GPU.
