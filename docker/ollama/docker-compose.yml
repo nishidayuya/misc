@@ -1,7 +1,7 @@
 services:
   ollama:
     # https://hub.docker.com/r/ollama/ollama/tags
-    image: ollama/ollama:0.33.1
+    image: ollama/ollama:0.40.4
     restart: always
     volumes:
       - ollama:/root/.ollama
