@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "searxng": {
+      "type": "http",
+      "url": "${MCP_SEARXNG_URL:-http://127.0.0.1:3000}/mcp"
+    }
+  }
+}
