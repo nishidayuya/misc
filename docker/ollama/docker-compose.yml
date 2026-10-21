@@ -8,5 +8,29 @@ services:
     ports:
       - "${OLLAMA_PORT:-127.0.0.1:11434}:11434"
 
+  # Metasearch engine used as a web search backend. Reachable only from mcp-searxng.
+  searxng:
+    # https://hub.docker.com/r/searxng/searxng/tags
+    image: searxng/searxng:2026.10.11-ad46ebd7d
+    restart: always
+    environment:
+      SEARXNG_SECRET: "${SEARXNG_SECRET:?set SEARXNG_SECRET in .env}"
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+
+  # MCP server (Streamable HTTP) that exposes SearXNG as tools to Claude Code.
+  mcp-searxng:
+    # https://hub.docker.com/r/isokoliuk/mcp-searxng/tags
+    image: isokoliuk/mcp-searxng:2.6.0
+    restart: always
+    environment:
+      SEARXNG_URL: "http://searxng:8080"
+      MCP_HTTP_PORT: "3000"
+      MCP_HTTP_HOST: "0.0.0.0"
+    ports:
+      - "${MCP_SEARXNG_PORT:-127.0.0.1:3000}:3000"
+    depends_on:
+      - searxng
+
 volumes:
   ollama:

@@ -1,0 +1,27 @@
+# https://docs.searxng.org/admin/settings/index.html
+use_default_settings: true
+
+server:
+  # Overridden by the SEARXNG_SECRET environment variable.
+  secret_key: "ultrasecretkey"
+  # Only mcp-searxng accesses this instance.
+  limiter: false
+
+search:
+  formats:
+    - html
+    # mcp-searxng uses the JSON API.
+    - json
+
+engines:
+  # Google often blocks scraping with CAPTCHAs.
+  - name: google
+    disabled: true
+  - name: duckduckgo
+    disabled: false
+  - name: brave
+    disabled: false
+  - name: startpage
+    disabled: false
+  - name: wikipedia
+    disabled: false
