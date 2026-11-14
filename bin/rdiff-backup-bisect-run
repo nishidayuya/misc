@@ -1,0 +1,142 @@
+#!/usr/bin/env ruby
+
+USAGE = <<~USAGE
+  usage: #{File.basename(Process.argv0)} [--only-increment] [--term-bad=<term-bad>] [--term-good=<term-good>] <path> <cmd> [<arg>...]
+
+  Find, by binary search, the increment of the rdiff-backup repository <path>
+  that satisfies <cmd> (exits with status 0) and is adjacent to the increments
+  that do not satisfy it. With the default terms, this is the newest increment
+  that satisfies <cmd>.
+
+  <cmd> runs in a temporary directory restored from each tested increment
+  with `rdiff-backup restore`.
+
+  options:
+    --only-increment       print only the found increment, without progress
+    --term-bad=<term-bad>  increment known not to satisfy <cmd>
+                           (default: current mirror)
+    --term-good=<term-good>
+                           increment known to satisfy <cmd>
+                           (default: oldest increment)
+
+  <term-bad> and <term-good> accept seconds since the epoch, a date-time such
+  as 2024-01-02T03:04:05+09:00, or an increment name such as
+  increments.2024-01-02T03:04:05+09:00.dir. They resolve to the newest
+  increment at or before the given time, like `rdiff-backup restore --at`.
+USAGE
+
+require "open3"
+require "optparse"
+require "time"
+require "tmpdir"
+require "yaml"
+
+Increment = Data.define(:time) do
+  def to_s
+    Time.at(time).iso8601
+  end
+end
+
+def usage_error(message = nil)
+  $stderr.puts("#{File.basename(Process.argv0)}: #{message}") if message
+  $stderr.puts(USAGE)
+  exit(1)
+end
+
+def error(message)
+  abort("#{File.basename(Process.argv0)}: #{message}")
+end
+
+def list_increments(path)
+  command = ["rdiff-backup", "--parsable-output", "list", "increments", path]
+  output, error_output, status = Open3.capture3(*command)
+  error("failed: #{command.join(" ")}\n#{error_output}") if !status.success?
+
+  parse_increments(output).map { |time| Increment.new(time:) }.sort_by(&:time)
+end
+
+# Parses YAML of API version 201 or later, or "<time> <type>" lines of
+# API version 200.
+def parse_increments(output)
+  entries = YAML.safe_load(output)
+  return entries.map { |entry| Integer(entry.fetch("time")) } if entries.is_a?(Array)
+
+  output.each_line.map { |line| Integer(line.split.first, 10) }
+end
+
+def parse_term(term)
+  return Integer(term, 10) if /\A\d+\z/.match?(term)
+
+  s = term.sub(/\Aincrements\.(.+)\.dir\z/, '\1')
+  Time.parse(s).to_i
+rescue ArgumentError
+  error("invalid increment: #{term}")
+end
+
+# Returns the index of the newest increment at or before the time of term.
+def resolve_term(increments, term)
+  time = parse_term(term)
+  index = increments.rindex { |increment| increment.time <= time }
+  error("no increment at or before #{term}") if !index
+
+  index
+end
+
+def satisfied?(path, increment, cmd, quiet:)
+  Dir.mktmpdir("rdiff-backup-bisect-run-") do |dir|
+    restored_path = File.join(dir, "restored")
+    restore_command = ["rdiff-backup", "restore", "--at", increment.time.to_s, path, restored_path]
+    output, status = Open3.capture2e(*restore_command)
+    error("failed: #{restore_command.join(" ")}\n#{output}") if !status.success?
+
+    cmd_options = quiet ? {out: File::NULL, err: File::NULL} : {out: :err}
+    result = system(*cmd, chdir: restored_path, **cmd_options)
+    error("cannot execute: #{cmd.join(" ")}") if result.nil?
+    error("killed by signal: #{cmd.join(" ")}") if $?.signaled?
+
+    result
+  end
+end
+
+only_increment = false
+term_bad = nil
+term_good = nil
+parser = OptionParser.new
+parser.banner = USAGE
+parser.on("--only-increment") { only_increment = true }
+parser.on("--term-bad=TERM") { |v| term_bad = v }
+parser.on("--term-good=TERM") { |v| term_good = v }
+begin
+  parser.order!(ARGV)
+rescue OptionParser::ParseError => e
+  usage_error(e.message)
+end
+path, *cmd = ARGV
+usage_error if !path || cmd.empty?
+
+log = only_increment ? ->(_message) {} : ->(message) { $stderr.puts(message) }
+
+increments = list_increments(path)
+bad_index = term_bad ? resolve_term(increments, term_bad) : increments.length - 1
+good_index = term_good ? resolve_term(increments, term_good) : 0
+if bad_index == good_index
+  error("<term-bad> and <term-good> are the same increment: #{increments[bad_index]}")
+end
+
+log.("bad:  #{increments[bad_index]}")
+log.("good: #{increments[good_index]}")
+while (bad_index - good_index).abs > 1
+  middle_index = (bad_index + good_index) / 2
+  increment = increments[middle_index]
+  log.("testing #{increment} (remaining: #{(bad_index - good_index).abs - 1})")
+  if satisfied?(path, increment, cmd, quiet: only_increment)
+    log.("good: #{increment}")
+    good_index = middle_index
+  else
+    log.("bad:  #{increment}")
+    bad_index = middle_index
+  end
+end
+
+log.("#{increments[good_index]} is the first increment satisfying the command (next to bad #{increments[bad_index]})")
+puts(increments[good_index])
