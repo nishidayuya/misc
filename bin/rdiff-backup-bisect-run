@@ -3,10 +3,11 @@
 USAGE = <<~USAGE
   usage: #{File.basename(Process.argv0)} [--only-increment] [--term-bad=<term-bad>] [--term-good=<term-good>] <path> <cmd> [<arg>...]
 
-  Find, by binary search, the increment of the rdiff-backup repository <path>
-  that satisfies <cmd> (exits with status 0) and is adjacent to the increments
-  that do not satisfy it. With the default terms, this is the newest increment
-  that satisfies <cmd>.
+  Find, by binary search like `git bisect run`, the first bad increment of the
+  rdiff-backup repository <path>: the increment that does not satisfy <cmd>
+  (exits with non-zero status) and is adjacent to the increments that satisfy
+  it (exit with status 0). With the default terms, this is the oldest
+  increment that does not satisfy <cmd>.
 
   <cmd> runs in a temporary directory restored from each tested increment
   with `rdiff-backup restore`.
@@ -138,5 +139,5 @@ while (bad_index - good_index).abs > 1
   end
 end
 
-log.("#{increments[good_index]} is the first increment satisfying the command (next to bad #{increments[bad_index]})")
-puts(increments[good_index])
+log.("#{increments[bad_index]} is the first bad increment")
+puts(increments[bad_index])
