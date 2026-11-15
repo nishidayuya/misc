@@ -135,10 +135,18 @@ term_bad = nil
 term_good = nil
 parser = OptionParser.new
 parser.banner = USAGE
-parser.on("--only-increment") { only_increment = true }
-parser.on("--keep") { keep = true }
-parser.on("--term-bad=TERM") { |v| term_bad = v }
-parser.on("--term-good=TERM") { |v| term_good = v }
+parser.on("--only-increment") do
+  only_increment = true
+end
+parser.on("--keep") do
+  keep = true
+end
+parser.on("--term-bad=TERM") do |v|
+  term_bad = v
+end
+parser.on("--term-good=TERM") do |v|
+  term_good = v
+end
 begin
   parser.order!(ARGV)
 rescue OptionParser::ParseError => e
