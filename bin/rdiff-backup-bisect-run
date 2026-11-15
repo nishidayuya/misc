@@ -118,7 +118,7 @@ def satisfied?(repository_path, increment, cmd, quiet:, log:, keep:)
     cmd_options = quiet ? {out: File::NULL, err: File::NULL} : {}
     result = system(*cmd, chdir: restored_path, **cmd_options)
     error("cannot execute: #{cmd.join(" ")}") if result.nil?
-    error("killed by signal: #{cmd.join(" ")}") if $?.signaled?
+    error("killed by signal: #{cmd.join(" ")}") if Process.last_status.signaled?
 
     result
   ensure
