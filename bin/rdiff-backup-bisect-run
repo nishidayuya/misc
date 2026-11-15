@@ -40,11 +40,11 @@ require "time"
 require "tmpdir"
 require "yaml"
 
-Increment = Data.define(:time) {
+Increment = Data.define(:time) do
   def to_s
     Time.at(time).iso8601
   end
-}
+end
 
 def usage_error(message = nil)
   warn("#{File.basename(Process.argv0)}: #{message}") if message
