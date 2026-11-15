@@ -1,37 +1,5 @@
 #!/usr/bin/env ruby
 
-USAGE = <<~USAGE
-  usage: #{File.basename(Process.argv0)} [--only-increment] [--keep] [--term-bad=<term-bad>] [--term-good=<term-good>] <path> <cmd> [<arg>...]
-
-  Find, by binary search like `git bisect run`, the first bad increment of the
-  rdiff-backup repository <path>: the increment that does not satisfy <cmd>
-  (exits with non-zero status) and is adjacent to the increments that satisfy
-  it (exit with status 0). With the default terms, this is the oldest
-  increment that does not satisfy <cmd>.
-
-  <cmd> runs in a temporary directory restored from each tested increment
-  with `rdiff-backup restore`. Like git bisect, the progress, including the
-  commands to reproduce each test, is printed to stdout, and <cmd> writes to
-  the same stdout and stderr.
-
-  options:
-    --only-increment       print only the found increment, without progress
-                           and the output of <cmd>
-    --keep                 keep the restored directories
-                           ($TMPDIR/rdiff-backup-bisect-run-<epoch>-
-                           <YYYYmmdd-HHMMSS>-*/restored)
-    --term-bad=<term-bad>  increment known not to satisfy <cmd>
-                           (default: current mirror)
-    --term-good=<term-good>
-                           increment known to satisfy <cmd>
-                           (default: oldest increment)
-
-  <term-bad> and <term-good> accept seconds since the epoch, a date-time such
-  as 2024-01-02T03:04:05+09:00, or an increment name such as
-  increments.2024-01-02T03:04:05+09:00.dir. They resolve to the newest
-  increment at or before the given time, like `rdiff-backup restore --at`.
-USAGE
-
 require "fileutils"
 require "open3"
 require "optparse"
@@ -47,9 +15,9 @@ Increment = Data.define(:time) do
   end
 end
 
-def usage_error(message = nil)
+def usage_error(parser, message = nil)
   warn("#{File.basename(Process.argv0)}: #{message}") if message
-  warn(USAGE)
+  warn(parser.help)
   exit(1)
 end
 
@@ -137,26 +105,67 @@ keep = false
 term_bad = nil
 term_good = nil
 parser = OptionParser.new
-parser.banner = USAGE
-parser.on("--only-increment") do
+parser.summary_indent = ""
+parser.summary_width = 26
+parser.banner = <<~BANNER
+  usage: #{File.basename(Process.argv0)} [--only-increment] [--keep] [--term-bad=<term-bad>] [--term-good=<term-good>] <path> <cmd> [<arg>...]
+
+  Find, by binary search like `git bisect run`, the first bad increment of the
+  rdiff-backup repository <path>: the increment that does not satisfy <cmd>
+  (exits with non-zero status) and is adjacent to the increments that satisfy
+  it (exit with status 0). With the default terms, this is the oldest
+  increment that does not satisfy <cmd>.
+
+  <cmd> runs in a temporary directory restored from each tested increment
+  with `rdiff-backup restore`. Like git bisect, the progress, including the
+  commands to reproduce each test, is printed to stdout, and <cmd> writes to
+  the same stdout and stderr.
+
+  options:
+BANNER
+parser.on(
+  "--only-increment",
+  "print only the found increment, without progress",
+  "and the output of <cmd>",
+) do
   only_increment = true
 end
-parser.on("--keep") do
+parser.on(
+  "--keep",
+  "keep the restored directories",
+  "($TMPDIR/rdiff-backup-bisect-run-<epoch>-",
+  "<YYYYmmdd-HHMMSS>-*/restored)",
+) do
   keep = true
 end
-parser.on("--term-bad=TERM") do |v|
+parser.on(
+  "--term-bad=<term-bad>",
+  "increment known not to satisfy <cmd>",
+  "(default: current mirror)",
+) do |v|
   term_bad = v
 end
-parser.on("--term-good=TERM") do |v|
+parser.on(
+  "--term-good=<term-good>",
+  "increment known to satisfy <cmd>",
+  "(default: oldest increment)",
+) do |v|
   term_good = v
 end
+parser.separator(<<~SEPARATOR)
+
+  <term-bad> and <term-good> accept seconds since the epoch, a date-time such
+  as 2024-01-02T03:04:05+09:00, or an increment name such as
+  increments.2024-01-02T03:04:05+09:00.dir. They resolve to the newest
+  increment at or before the given time, like `rdiff-backup restore --at`.
+SEPARATOR
 begin
   parser.order!(ARGV)
 rescue OptionParser::ParseError => e
-  usage_error(e.message)
+  usage_error(parser, e.message)
 end
 s_repository_path, *cmd = ARGV
-usage_error if !s_repository_path || cmd.empty?
+usage_error(parser) if !s_repository_path || cmd.empty?
 repository_path = Pathname(s_repository_path)
 
 # Like git bisect, print progress to stdout. Sync it to keep the order with
