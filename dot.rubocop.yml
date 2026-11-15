@@ -14,18 +14,10 @@ Metrics:
 #   So, block caller MUST NOT use block result.
 Style/BlockDelimiters:
   EnforcedStyle: semantic
+  inherit_mode:
+    merge:
+      - ProceduralMethods
   ProceduralMethods:
-    # Defaults of RuboCop
-    - benchmark
-    - bm
-    - bmbm
-    - create
-    - each_with_object
-    - measure
-    - new
-    - realtime
-    - tap
-    - with_object
     # Data.define uses the block as the class body, not its value.
     - define
   FunctionalMethods:
