@@ -166,8 +166,7 @@ while (bad_index - good_index).abs > 1
   middle_index = (bad_index + good_index) / 2
   increment = increments[middle_index]
   untested_count = (bad_index - good_index).abs - 1
-  left_count = untested_count / 2
-  log.("Bisecting: #{pluralize(left_count, "increment")} left to test after this " \
+  log.("Bisecting: #{pluralize(untested_count / 2, "increment")} left to test after this " \
        "(roughly #{pluralize(estimate_bisect_steps(untested_count), "step")})")
   log.("testing #{increment}")
   if satisfied?(repository_path, increment, cmd, quiet: only_increment, log:, keep:)
