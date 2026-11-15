@@ -18,7 +18,8 @@ USAGE = <<~USAGE
     --only-increment       print only the found increment, without progress
                            and the output of <cmd>
     --keep                 keep the restored directories
-                           ($TMPDIR/rdiff-backup-bisect-run-<epoch>-*/restored)
+                           ($TMPDIR/rdiff-backup-bisect-run-<epoch>-
+                           <YYYYmmdd-HHMMSS>-*/restored)
     --term-bad=<term-bad>  increment known not to satisfy <cmd>
                            (default: current mirror)
     --term-good=<term-good>
@@ -106,7 +107,8 @@ def resolve_term(increments, term)
 end
 
 def satisfied?(repository_path, increment, cmd, quiet:, log:, keep:)
-  tmp_path = Pathname(Dir.mktmpdir("rdiff-backup-bisect-run-#{increment.time}-"))
+  tmp_prefix = "rdiff-backup-bisect-run-#{increment.time}-#{Time.at(increment.time).strftime("%Y%m%d-%H%M%S")}-"
+  tmp_path = Pathname(Dir.mktmpdir(tmp_prefix))
   begin
     restored_path = tmp_path / "restored"
     restore_command = ["rdiff-backup", "restore", "--at", increment.time.to_s, repository_path.to_s, restored_path.to_s]
