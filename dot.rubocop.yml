@@ -1,5 +1,6 @@
 AllCops:
   NewCops: enable
+  TargetRubyVersion: 4.0
 
 Metrics:
   Enabled: false
