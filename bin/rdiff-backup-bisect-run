@@ -82,13 +82,14 @@ rescue ArgumentError
   error("invalid increment: #{term}")
 end
 
-# Estimates the number of steps after testing one of n untested increments,
-# like estimate_bisect_steps() of git.
-def estimate_bisect_steps(n)
-  return 0 if n < 3
+# Estimates the number of steps after testing one of untested_count
+# increments, like estimate_bisect_steps() of git.
+def estimate_bisect_steps(untested_count)
+  return 0 if untested_count < 3
 
-  e = 1 << (n.bit_length - 1)
-  e < 3 * (n - e) ? n.bit_length - 1 : n.bit_length - 2
+  n = untested_count.bit_length - 1
+  e = 1 << n
+  e < 3 * (untested_count - e) ? n : n - 1
 end
 
 def pluralize(count, word)
