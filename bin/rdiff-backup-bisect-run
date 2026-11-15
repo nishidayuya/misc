@@ -27,10 +27,10 @@ end
 
 def list_increments(repository_path)
   command = %W[rdiff-backup --parsable-output list increments #{repository_path}]
-  output, error_output, status = Open3.capture3(*command)
-  error("failed: #{command.join(" ")}\n#{error_output}") if !status.success?
+  stdout, stderr, status = Open3.capture3(*command)
+  error("failed: #{command.join(" ")}\n#{stderr}") if !status.success?
 
-  parse_increments(output).map { |time| Increment.new(time:) }.sort_by(&:time)
+  parse_increments(stdout).map { |time| Increment.new(time:) }.sort_by(&:time)
 end
 
 # Parses YAML of API version 201 or later, or "<time> <type>" lines of
@@ -81,8 +81,8 @@ def satisfied?(repository_path, increment, cmd, quiet:, log:, keep:)
     restored_path = tmp_path / "restored"
     restore_command = %W[rdiff-backup restore --at #{increment.time} #{repository_path} #{restored_path}]
     log.("$ #{restore_command.shelljoin}")
-    output, status = Open3.capture2e(*restore_command)
-    error("failed: #{restore_command.join(" ")}\n#{output}") if !status.success?
+    stdout_and_stderr, status = Open3.capture2e(*restore_command)
+    error("failed: #{restore_command.join(" ")}\n#{stdout_and_stderr}") if !status.success?
 
     log.("$ cd #{restored_path.to_s.shellescape} && #{cmd.shelljoin}")
     cmd_options = quiet ? {out: File::NULL, err: File::NULL} : {}
