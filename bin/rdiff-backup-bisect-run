@@ -193,6 +193,9 @@ end
 log.("#{increments[bad_index]} is the first bad increment")
 log.("restore the good and bad increments at the boundary with:")
 {"good" => good_index, "bad" => bad_index}.each do |term, index|
-  restore_command = ["rdiff-backup", "restore", "--at", increments[index].to_s, repository_path.to_s, "restored-#{term}"]
+  restore_command = [
+    "rdiff-backup", "restore", "--at", increments[index].to_s,
+    repository_path.to_s, "restored-#{term}",
+  ]
   log.("  $ #{restore_command.shelljoin}")
 end
