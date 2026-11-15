@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 USAGE = <<~USAGE
-  usage: #{File.basename(Process.argv0)} [--only-increment] [--term-bad=<term-bad>] [--term-good=<term-good>] <path> <cmd> [<arg>...]
+  usage: #{File.basename(Process.argv0)} [--only-increment] [--keep] [--term-bad=<term-bad>] [--term-good=<term-good>] <path> <cmd> [<arg>...]
 
   Find, by binary search like `git bisect run`, the first bad increment of the
   rdiff-backup repository <path>: the increment that does not satisfy <cmd>
@@ -15,6 +15,8 @@ USAGE = <<~USAGE
 
   options:
     --only-increment       print only the found increment, without progress
+    --keep                 keep the restored directories
+                           ($TMPDIR/rdiff-backup-bisect-run-<epoch>-*/restored)
     --term-bad=<term-bad>  increment known not to satisfy <cmd>
                            (default: current mirror)
     --term-good=<term-good>
@@ -27,6 +29,7 @@ USAGE = <<~USAGE
   increment at or before the given time, like `rdiff-backup restore --at`.
 USAGE
 
+require "fileutils"
 require "open3"
 require "optparse"
 require "shellwords"
@@ -85,8 +88,9 @@ def resolve_term(increments, term)
   index
 end
 
-def satisfied?(path, increment, cmd, quiet:, log:)
-  Dir.mktmpdir("rdiff-backup-bisect-run-") do |dir|
+def satisfied?(path, increment, cmd, quiet:, log:, keep:)
+  dir = Dir.mktmpdir("rdiff-backup-bisect-run-#{increment.time}-")
+  begin
     restored_path = File.join(dir, "restored")
     restore_command = ["rdiff-backup", "restore", "--at", increment.time.to_s, path, restored_path]
     log.("$ #{restore_command.shelljoin}")
@@ -100,15 +104,23 @@ def satisfied?(path, increment, cmd, quiet:, log:)
     error("killed by signal: #{cmd.join(" ")}") if $?.signaled?
 
     result
+  ensure
+    if keep
+      log.("kept: #{restored_path}")
+    else
+      FileUtils.remove_entry(dir)
+    end
   end
 end
 
 only_increment = false
+keep = false
 term_bad = nil
 term_good = nil
 parser = OptionParser.new
 parser.banner = USAGE
 parser.on("--only-increment") { only_increment = true }
+parser.on("--keep") { keep = true }
 parser.on("--term-bad=TERM") { |v| term_bad = v }
 parser.on("--term-good=TERM") { |v| term_good = v }
 begin
@@ -134,7 +146,7 @@ while (bad_index - good_index).abs > 1
   middle_index = (bad_index + good_index) / 2
   increment = increments[middle_index]
   log.("testing #{increment} (remaining: #{(bad_index - good_index).abs - 1})")
-  if satisfied?(path, increment, cmd, quiet: only_increment, log:)
+  if satisfied?(path, increment, cmd, quiet: only_increment, log:, keep:)
     log.("good: #{increment}")
     good_index = middle_index
   else
