@@ -1,5 +1,7 @@
 AllCops:
   NewCops: enable
+  # Ruby of Debian trixie is 3.3.
+  TargetRubyVersion: 3.3
 
 Metrics:
   Enabled: false
@@ -14,6 +16,12 @@ Metrics:
 #   So, block caller MUST NOT use block result.
 Style/BlockDelimiters:
   EnforcedStyle: semantic
+  inherit_mode:
+    merge:
+      - ProceduralMethods
+  ProceduralMethods:
+    # Data.define uses the block as the class body, not its value.
+    - define
   FunctionalMethods:
     - data # Data driven tests on test-unit.gem
 

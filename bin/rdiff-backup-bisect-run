@@ -1,0 +1,209 @@
+#!/usr/bin/env ruby
+
+require "fileutils"
+require "open3"
+require "optparse"
+require "pathname"
+require "shellwords"
+require "time"
+require "tmpdir"
+require "yaml"
+
+Increment = Data.define(:time) do
+  def to_s
+    Time.at(time).iso8601
+  end
+end
+
+def usage_error(parser, message = nil)
+  warn("#{File.basename(Process.argv0)}: #{message}") if message
+  warn(parser.help)
+  exit(1)
+end
+
+def error(message)
+  abort("#{File.basename(Process.argv0)}: #{message}")
+end
+
+def list_increments(repository_path)
+  command = %W[rdiff-backup --parsable-output list increments #{repository_path}]
+  stdout, stderr, status = Open3.capture3(*command)
+  error("failed: #{command.join(" ")}\n#{stderr}") if !status.success?
+
+  parse_increments(stdout).map { |time| Increment.new(time:) }.sort_by(&:time)
+end
+
+# Parses YAML of API version 201 or later, or "<time> <type>" lines of
+# API version 200.
+def parse_increments(output)
+  entries = YAML.safe_load(output)
+  return entries.map { |entry| Integer(entry.fetch("time")) } if entries.is_a?(Array)
+
+  output.each_line.map { |line| Integer(line.split.first, 10) }
+end
+
+def parse_term(term)
+  return Integer(term, 10) if /\A\d+\z/.match?(term)
+
+  s = term.sub(/\Aincrements\.(.+)\.dir\z/, '\1')
+  Time.parse(s).to_i
+rescue ArgumentError
+  error("invalid increment: #{term}")
+end
+
+# Estimates the number of steps after testing one of untested_count
+# increments, like estimate_bisect_steps() of git.
+def estimate_bisect_steps(untested_count)
+  return 0 if untested_count < 3
+
+  n = untested_count.bit_length - 1
+  e = 1 << n
+  e < 3 * (untested_count - e) ? n : n - 1
+end
+
+def pluralize(count, word)
+  "#{count} #{word}#{"s" if count != 1}"
+end
+
+# Returns the index of the newest increment at or before the time of term.
+def resolve_term(increments, term)
+  time = parse_term(term)
+  index = increments.rindex { |increment| increment.time <= time }
+  error("no increment at or before #{term}") if !index
+
+  index
+end
+
+def satisfied?(repository_path, increment, cmd, quiet:, log:, keep:)
+  tmp_prefix = "rdiff-backup-bisect-run-#{increment.time}-#{Time.at(increment.time).strftime("%Y%m%d-%H%M%S")}-"
+  tmp_path = Pathname(Dir.mktmpdir(tmp_prefix))
+  begin
+    restored_path = tmp_path / "restored"
+    restore_command = %W[rdiff-backup restore --at #{increment.time} #{repository_path} #{restored_path}]
+    log.("$ #{restore_command.shelljoin}")
+    stdout_and_stderr, status = Open3.capture2e(*restore_command)
+    error("failed: #{restore_command.join(" ")}\n#{stdout_and_stderr}") if !status.success?
+
+    log.("$ cd #{restored_path.to_s.shellescape} && #{cmd.shelljoin}")
+    cmd_options = quiet ? {out: File::NULL, err: File::NULL} : {}
+    result = system(*cmd, chdir: restored_path, **cmd_options)
+    error("cannot execute: #{cmd.join(" ")}") if result.nil?
+    error("killed by signal: #{cmd.join(" ")}") if Process.last_status.signaled?
+
+    result
+  ensure
+    if keep
+      log.("kept: #{restored_path}")
+    else
+      FileUtils.remove_entry(tmp_path)
+    end
+  end
+end
+
+only_increment = false
+keep = false
+term_bad = nil
+term_good = nil
+parser = OptionParser.new
+parser.summary_indent = ""
+parser.summary_width = 26
+parser.banner = <<~BANNER
+  usage: #{File.basename(Process.argv0)} [--only-increment] [--keep] [--term-bad=<term-bad>] [--term-good=<term-good>] <path> <cmd> [<arg>...]
+
+  Find, by binary search like `git bisect run`, the first bad increment of the
+  rdiff-backup repository <path>: the increment that does not satisfy <cmd>
+  (exits with non-zero status) and is adjacent to the increments that satisfy
+  it (exit with status 0). With the default terms, this is the oldest
+  increment that does not satisfy <cmd>.
+
+  <cmd> runs in a temporary directory restored from each tested increment
+  with `rdiff-backup restore`. Like git bisect, the progress, including the
+  commands to reproduce each test, is printed to stdout, and <cmd> writes to
+  the same stdout and stderr.
+
+  options:
+BANNER
+parser.on(
+  "--only-increment",
+  "print only the found increment, without progress",
+  "and the output of <cmd>",
+) do
+  only_increment = true
+end
+parser.on(
+  "--keep",
+  "keep the restored directories",
+  "($TMPDIR/rdiff-backup-bisect-run-<epoch>-",
+  "<YYYYmmdd-HHMMSS>-*/restored)",
+) do
+  keep = true
+end
+parser.on(
+  "--term-bad=<term-bad>",
+  "increment known not to satisfy <cmd>",
+  "(default: current mirror)",
+) do |v|
+  term_bad = v
+end
+parser.on(
+  "--term-good=<term-good>",
+  "increment known to satisfy <cmd>",
+  "(default: oldest increment)",
+) do |v|
+  term_good = v
+end
+parser.separator(<<~SEPARATOR)
+
+  <term-bad> and <term-good> accept seconds since the epoch, a date-time such
+  as 2024-01-02T03:04:05+09:00, or an increment name such as
+  increments.2024-01-02T03:04:05+09:00.dir. They resolve to the newest
+  increment at or before the given time, like `rdiff-backup restore --at`.
+SEPARATOR
+begin
+  parser.order!(ARGV)
+rescue OptionParser::ParseError => e
+  usage_error(parser, e.message)
+end
+s_repository_path, *cmd = ARGV
+usage_error(parser) if !s_repository_path || cmd.empty?
+repository_path = Pathname(s_repository_path)
+
+# Like git bisect, print progress to stdout. Sync it to keep the order with
+# the output of <cmd>.
+$stdout.sync = true
+log = only_increment ? ->(_message) {} : ->(message) { puts(message) }
+
+increments = list_increments(repository_path)
+bad_index = term_bad ? resolve_term(increments, term_bad) : increments.length - 1
+good_index = term_good ? resolve_term(increments, term_good) : 0
+error("<term-bad> and <term-good> are the same increment: #{increments[bad_index]}") if bad_index == good_index
+
+log.("bad:  #{increments[bad_index]}")
+log.("good: #{increments[good_index]}")
+while (bad_index - good_index).abs > 1
+  middle_index = (bad_index + good_index) / 2
+  increment = increments[middle_index]
+  untested_count = (bad_index - good_index).abs - 1
+  log.("Bisecting: #{pluralize(untested_count / 2, "increment")} left to test after this " \
+       "(roughly #{pluralize(estimate_bisect_steps(untested_count), "step")})")
+  log.("testing #{increment}")
+  if satisfied?(repository_path, increment, cmd, quiet: only_increment, log:, keep:)
+    log.("good: #{increment}")
+    good_index = middle_index
+  else
+    log.("bad:  #{increment}")
+    bad_index = middle_index
+  end
+end
+
+if only_increment
+  puts(increments[bad_index])
+  exit
+end
+
+log.("#{increments[bad_index]} is the first bad increment")
+log.("restore the good and bad increments at the boundary with:")
+{"good" => good_index, "bad" => bad_index}.each do |term, index|
+  restore_command = %W[rdiff-backup restore --at #{increments[index]} #{repository_path} restored-#{term}]
+  log.("  $ #{restore_command.shelljoin}")
+end
