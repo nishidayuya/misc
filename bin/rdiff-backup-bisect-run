@@ -58,7 +58,7 @@ def error(message)
 end
 
 def list_increments(repository_path)
-  command = ["rdiff-backup", "--parsable-output", "list", "increments", repository_path.to_s]
+  command = %W[rdiff-backup --parsable-output list increments #{repository_path}]
   output, error_output, status = Open3.capture3(*command)
   error("failed: #{command.join(" ")}\n#{error_output}") if !status.success?
 
@@ -111,7 +111,7 @@ def satisfied?(repository_path, increment, cmd, quiet:, log:, keep:)
   tmp_path = Pathname(Dir.mktmpdir(tmp_prefix))
   begin
     restored_path = tmp_path / "restored"
-    restore_command = ["rdiff-backup", "restore", "--at", increment.time.to_s, repository_path.to_s, restored_path.to_s]
+    restore_command = %W[rdiff-backup restore --at #{increment.time} #{repository_path} #{restored_path}]
     log.("$ #{restore_command.shelljoin}")
     output, status = Open3.capture2e(*restore_command)
     error("failed: #{restore_command.join(" ")}\n#{output}") if !status.success?
@@ -195,9 +195,6 @@ end
 log.("#{increments[bad_index]} is the first bad increment")
 log.("restore the good and bad increments at the boundary with:")
 {"good" => good_index, "bad" => bad_index}.each do |term, index|
-  restore_command = [
-    "rdiff-backup", "restore", "--at", increments[index].to_s,
-    repository_path.to_s, "restored-#{term}",
-  ]
+  restore_command = %W[rdiff-backup restore --at #{increments[index]} #{repository_path} restored-#{term}]
   log.("  $ #{restore_command.shelljoin}")
 end
