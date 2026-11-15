@@ -10,11 +10,13 @@ USAGE = <<~USAGE
   increment that does not satisfy <cmd>.
 
   <cmd> runs in a temporary directory restored from each tested increment
-  with `rdiff-backup restore`. The commands to reproduce each test are shown
-  with the progress.
+  with `rdiff-backup restore`. Like git bisect, the progress, including the
+  commands to reproduce each test, is printed to stdout, and <cmd> writes to
+  the same stdout and stderr.
 
   options:
     --only-increment       print only the found increment, without progress
+                           and the output of <cmd>
     --keep                 keep the restored directories
                            ($TMPDIR/rdiff-backup-bisect-run-<epoch>-*/restored)
     --term-bad=<term-bad>  increment known not to satisfy <cmd>
@@ -98,7 +100,7 @@ def satisfied?(path, increment, cmd, quiet:, log:, keep:)
     error("failed: #{restore_command.join(" ")}\n#{output}") if !status.success?
 
     log.("$ cd #{restored_path.shellescape} && #{cmd.shelljoin}")
-    cmd_options = quiet ? {out: File::NULL, err: File::NULL} : {out: :err}
+    cmd_options = quiet ? {out: File::NULL, err: File::NULL} : {}
     result = system(*cmd, chdir: restored_path, **cmd_options)
     error("cannot execute: #{cmd.join(" ")}") if result.nil?
     error("killed by signal: #{cmd.join(" ")}") if $?.signaled?
@@ -131,7 +133,10 @@ end
 path, *cmd = ARGV
 usage_error if !path || cmd.empty?
 
-log = only_increment ? ->(_message) {} : ->(message) { $stderr.puts(message) }
+# Like git bisect, print progress to stdout. Sync it to keep the order with
+# the output of <cmd>.
+$stdout.sync = true
+log = only_increment ? ->(_message) {} : ->(message) { puts(message) }
 
 increments = list_increments(path)
 bad_index = term_bad ? resolve_term(increments, term_bad) : increments.length - 1
@@ -155,5 +160,8 @@ while (bad_index - good_index).abs > 1
   end
 end
 
-log.("#{increments[bad_index]} is the first bad increment")
-puts(increments[bad_index])
+if only_increment
+  puts(increments[bad_index])
+else
+  log.("#{increments[bad_index]} is the first bad increment")
+end
