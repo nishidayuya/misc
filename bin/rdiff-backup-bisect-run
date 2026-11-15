@@ -10,7 +10,8 @@ USAGE = <<~USAGE
   increment that does not satisfy <cmd>.
 
   <cmd> runs in a temporary directory restored from each tested increment
-  with `rdiff-backup restore`.
+  with `rdiff-backup restore`. The commands to reproduce each test are shown
+  with the progress.
 
   options:
     --only-increment       print only the found increment, without progress
@@ -28,6 +29,7 @@ USAGE
 
 require "open3"
 require "optparse"
+require "shellwords"
 require "time"
 require "tmpdir"
 require "yaml"
@@ -83,13 +85,15 @@ def resolve_term(increments, term)
   index
 end
 
-def satisfied?(path, increment, cmd, quiet:)
+def satisfied?(path, increment, cmd, quiet:, log:)
   Dir.mktmpdir("rdiff-backup-bisect-run-") do |dir|
     restored_path = File.join(dir, "restored")
     restore_command = ["rdiff-backup", "restore", "--at", increment.time.to_s, path, restored_path]
+    log.("$ #{restore_command.shelljoin}")
     output, status = Open3.capture2e(*restore_command)
     error("failed: #{restore_command.join(" ")}\n#{output}") if !status.success?
 
+    log.("$ cd #{restored_path.shellescape} && #{cmd.shelljoin}")
     cmd_options = quiet ? {out: File::NULL, err: File::NULL} : {out: :err}
     result = system(*cmd, chdir: restored_path, **cmd_options)
     error("cannot execute: #{cmd.join(" ")}") if result.nil?
@@ -130,7 +134,7 @@ while (bad_index - good_index).abs > 1
   middle_index = (bad_index + good_index) / 2
   increment = increments[middle_index]
   log.("testing #{increment} (remaining: #{(bad_index - good_index).abs - 1})")
-  if satisfied?(path, increment, cmd, quiet: only_increment)
+  if satisfied?(path, increment, cmd, quiet: only_increment, log:)
     log.("good: #{increment}")
     good_index = middle_index
   else
