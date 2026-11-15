@@ -34,6 +34,7 @@ USAGE
 require "fileutils"
 require "open3"
 require "optparse"
+require "pathname"
 require "shellwords"
 require "time"
 require "tmpdir"
@@ -55,8 +56,8 @@ def error(message)
   abort("#{File.basename(Process.argv0)}: #{message}")
 end
 
-def list_increments(path)
-  command = ["rdiff-backup", "--parsable-output", "list", "increments", path]
+def list_increments(repository_path)
+  command = ["rdiff-backup", "--parsable-output", "list", "increments", repository_path.to_s]
   output, error_output, status = Open3.capture3(*command)
   error("failed: #{command.join(" ")}\n#{error_output}") if !status.success?
 
@@ -90,16 +91,16 @@ def resolve_term(increments, term)
   index
 end
 
-def satisfied?(path, increment, cmd, quiet:, log:, keep:)
-  dir = Dir.mktmpdir("rdiff-backup-bisect-run-#{increment.time}-")
+def satisfied?(repository_path, increment, cmd, quiet:, log:, keep:)
+  tmp_path = Pathname(Dir.mktmpdir("rdiff-backup-bisect-run-#{increment.time}-"))
   begin
-    restored_path = File.join(dir, "restored")
-    restore_command = ["rdiff-backup", "restore", "--at", increment.time.to_s, path, restored_path]
+    restored_path = tmp_path / "restored"
+    restore_command = ["rdiff-backup", "restore", "--at", increment.time.to_s, repository_path.to_s, restored_path.to_s]
     log.("$ #{restore_command.shelljoin}")
     output, status = Open3.capture2e(*restore_command)
     error("failed: #{restore_command.join(" ")}\n#{output}") if !status.success?
 
-    log.("$ cd #{restored_path.shellescape} && #{cmd.shelljoin}")
+    log.("$ cd #{restored_path.to_s.shellescape} && #{cmd.shelljoin}")
     cmd_options = quiet ? {out: File::NULL, err: File::NULL} : {}
     result = system(*cmd, chdir: restored_path, **cmd_options)
     error("cannot execute: #{cmd.join(" ")}") if result.nil?
@@ -110,7 +111,7 @@ def satisfied?(path, increment, cmd, quiet:, log:, keep:)
     if keep
       log.("kept: #{restored_path}")
     else
-      FileUtils.remove_entry(dir)
+      FileUtils.remove_entry(tmp_path)
     end
   end
 end
@@ -130,15 +131,16 @@ begin
 rescue OptionParser::ParseError => e
   usage_error(e.message)
 end
-path, *cmd = ARGV
-usage_error if !path || cmd.empty?
+s_repository_path, *cmd = ARGV
+usage_error if !s_repository_path || cmd.empty?
+repository_path = Pathname(s_repository_path)
 
 # Like git bisect, print progress to stdout. Sync it to keep the order with
 # the output of <cmd>.
 $stdout.sync = true
 log = only_increment ? ->(_message) {} : ->(message) { puts(message) }
 
-increments = list_increments(path)
+increments = list_increments(repository_path)
 bad_index = term_bad ? resolve_term(increments, term_bad) : increments.length - 1
 good_index = term_good ? resolve_term(increments, term_good) : 0
 if bad_index == good_index
@@ -151,7 +153,7 @@ while (bad_index - good_index).abs > 1
   middle_index = (bad_index + good_index) / 2
   increment = increments[middle_index]
   log.("testing #{increment} (remaining: #{(bad_index - good_index).abs - 1})")
-  if satisfied?(path, increment, cmd, quiet: only_increment, log:, keep:)
+  if satisfied?(repository_path, increment, cmd, quiet: only_increment, log:, keep:)
     log.("good: #{increment}")
     good_index = middle_index
   else
@@ -168,6 +170,7 @@ end
 log.("#{increments[bad_index]} is the first bad increment")
 log.("restore the good and bad increments at the boundary with:")
 {"good" => good_index, "bad" => bad_index}.each do |term, index|
-  restore_command = ["rdiff-backup", "restore", "--at", increments[index].to_s, path, "restored-#{term}"]
+  restored_path = Pathname("restored-#{term}")
+  restore_command = ["rdiff-backup", "restore", "--at", increments[index].to_s, repository_path.to_s, restored_path.to_s]
   log.("  $ #{restore_command.shelljoin}")
 end
