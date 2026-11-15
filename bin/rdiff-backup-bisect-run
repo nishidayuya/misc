@@ -82,6 +82,19 @@ rescue ArgumentError
   error("invalid increment: #{term}")
 end
 
+# Estimates the number of steps after testing one of n untested increments,
+# like estimate_bisect_steps() of git.
+def estimate_bisect_steps(n)
+  return 0 if n < 3
+
+  e = 1 << (n.bit_length - 1)
+  e < 3 * (n - e) ? n.bit_length - 1 : n.bit_length - 2
+end
+
+def pluralize(count, word)
+  "#{count} #{word}#{"s" if count != 1}"
+end
+
 # Returns the index of the newest increment at or before the time of term.
 def resolve_term(increments, term)
   time = parse_term(term)
@@ -152,7 +165,11 @@ log.("good: #{increments[good_index]}")
 while (bad_index - good_index).abs > 1
   middle_index = (bad_index + good_index) / 2
   increment = increments[middle_index]
-  log.("testing #{increment} (remaining: #{(bad_index - good_index).abs - 1})")
+  untested_count = (bad_index - good_index).abs - 1
+  left_count = untested_count / 2
+  log.("Bisecting: #{pluralize(left_count, "increment")} left to test after this " \
+       "(roughly #{pluralize(estimate_bisect_steps(untested_count), "step")})")
+  log.("testing #{increment}")
   if satisfied?(repository_path, increment, cmd, quiet: only_increment, log:, keep:)
     log.("good: #{increment}")
     good_index = middle_index
