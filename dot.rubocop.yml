@@ -1,6 +1,7 @@
 AllCops:
   NewCops: enable
-  TargetRubyVersion: 4.0
+  # Ruby of Debian trixie is 3.3.
+  TargetRubyVersion: 3.3
 
 Metrics:
   Enabled: false
