@@ -47,8 +47,8 @@ Increment = Data.define(:time) {
 }
 
 def usage_error(message = nil)
-  $stderr.puts("#{File.basename(Process.argv0)}: #{message}") if message
-  $stderr.puts(USAGE)
+  warn("#{File.basename(Process.argv0)}: #{message}") if message
+  warn(USAGE)
   exit(1)
 end
 
