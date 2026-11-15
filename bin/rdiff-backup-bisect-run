@@ -165,9 +165,7 @@ log = only_increment ? ->(_message) {} : ->(message) { puts(message) }
 increments = list_increments(repository_path)
 bad_index = term_bad ? resolve_term(increments, term_bad) : increments.length - 1
 good_index = term_good ? resolve_term(increments, term_good) : 0
-if bad_index == good_index
-  error("<term-bad> and <term-good> are the same increment: #{increments[bad_index]}")
-end
+error("<term-bad> and <term-good> are the same increment: #{increments[bad_index]}") if bad_index == good_index
 
 log.("bad:  #{increments[bad_index]}")
 log.("good: #{increments[good_index]}")
