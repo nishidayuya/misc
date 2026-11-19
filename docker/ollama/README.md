@@ -39,8 +39,17 @@ $ docker compose up -d &&
 ## Context length and VRAM
 
 Claude Code needs a long context (32k tokens or more), and the K/V cache for it takes several GB of VRAM.
-`docker-compose.yml` quantizes the K/V cache to 8 bits (`OLLAMA_KV_CACHE_TYPE=q8_0`), which roughly halves it.
-Flash attention, which the quantized cache works with, is left to its default (`auto` on supported GPUs).
+The K/V cache is `f16` by default, Ollama's default.
+
+To use Claude Code with `qwen3-coder:30b` on a GPU with 24 GB of VRAM, setting `OLLAMA_KV_CACHE_TYPE=q8_0` in `.env` is recommended:
+
+```console
+$ echo "OLLAMA_KV_CACHE_TYPE=q8_0" >> .env
+```
+
+`qwen3-coder:30b` uses attention in all of its layers, so its K/V cache is large: with `f16`, only about 48k tokens are estimated to fit in VRAM along with the model.
+`q8_0` roughly halves the cache, and so roughly doubles the context.
+It applies to all models, and needs flash attention, which is left to its default (`auto` on supported GPUs).
 
 ## Model storage
 

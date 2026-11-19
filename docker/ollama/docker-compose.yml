@@ -4,7 +4,7 @@ services:
     image: ollama/ollama:0.40.4
     restart: always
     environment:
-      OLLAMA_KV_CACHE_TYPE: "q8_0"
+      OLLAMA_KV_CACHE_TYPE: "${OLLAMA_KV_CACHE_TYPE:-f16}"
     volumes:
       - ollama:/root/.ollama
       - ${OLLAMA_MODELS_PATH:-ollama-models}:/root/.ollama/models
