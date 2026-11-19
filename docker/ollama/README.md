@@ -36,6 +36,21 @@ $ docker compose up -d &&
 
 `docker compose exec ollama ollama ps` shows `100% GPU` in the `PROCESSOR` column when the model runs on the GPU.
 
+## Context length and VRAM
+
+Claude Code needs a long context (32k tokens or more), and the K/V cache for it takes several GB of VRAM.
+The K/V cache is `f16` by default, Ollama's default.
+
+To use Claude Code with `qwen3-coder:30b` on a GPU with 24 GB of VRAM, setting `OLLAMA_KV_CACHE_TYPE=q8_0` in `.env` is recommended:
+
+```console
+$ echo "OLLAMA_KV_CACHE_TYPE=q8_0" >> .env
+```
+
+`qwen3-coder:30b` uses attention in all of its layers, so its K/V cache is large: with `f16`, only about 48k tokens are estimated to fit in VRAM along with the model.
+`q8_0` roughly halves the cache, and so roughly doubles the context.
+It applies to all models, and needs flash attention, which is left to its default (`auto` on supported GPUs).
+
 ## Model storage
 
 Downloaded models are stored in the `ollama-models` volume, mounted on `/root/.ollama/models`.
