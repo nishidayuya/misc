@@ -41,10 +41,10 @@ $ docker compose up -d &&
 Downloaded models are stored in the `ollama-models` volume, mounted on `/root/.ollama/models`.
 The rest of `/root/.ollama` (the Ollama key pair and caches) stays in the `ollama` volume.
 
-To store models in a host directory instead, set `OLLAMA_MODELS_DIR` in `.env`:
+To store models in a host directory instead, set `OLLAMA_MODELS_PATH` in `.env`:
 
 ```console
-$ echo "OLLAMA_MODELS_DIR=/srv/ollama-models" >> .env
+$ echo "OLLAMA_MODELS_PATH=/srv/ollama-models" >> .env
 ```
 
 Docker creates the directory owned by root if it does not exist.
@@ -66,7 +66,7 @@ $ docker compose exec ollama ollama list
 ```
 
 `docker compose up --no-start` lets Compose create the new volume, so that it carries Compose's labels.
-When `OLLAMA_MODELS_DIR` is set, replace `-v ollama_ollama-models:/to` with `-v "$OLLAMA_MODELS_DIR":/to`.
+When `OLLAMA_MODELS_PATH` is set, replace `-v ollama_ollama-models:/to` with `-v "$OLLAMA_MODELS_PATH":/to`.
 The copy temporarily needs as much free space as the models take.
 The volume names are prefixed with the Compose project name (`ollama` by default).
 
