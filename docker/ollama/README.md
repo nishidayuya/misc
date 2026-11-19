@@ -36,6 +36,40 @@ $ docker compose up -d &&
 
 `docker compose exec ollama ollama ps` shows `100% GPU` in the `PROCESSOR` column when the model runs on the GPU.
 
+## Model storage
+
+Downloaded models are stored in the `ollama-models` volume, mounted on `/root/.ollama/models`.
+The rest of `/root/.ollama` (the Ollama key pair and caches) stays in the `ollama` volume.
+
+To store models in a host directory instead, set `OLLAMA_MODELS_PATH` in `.env`:
+
+```console
+$ echo "OLLAMA_MODELS_PATH=/srv/ollama-models" >> .env
+```
+
+Docker creates the directory owned by root if it does not exist.
+A relative path must start with `./` (e.g. `./models`); otherwise it is taken as a volume name.
+
+### Migrating models from the `ollama` volume
+
+Models were stored in the `ollama` volume before.
+After the change, the new mount hides them, so Ollama lists no models while they still take disk space.
+Move them to the new location:
+
+```console
+$ docker compose down
+$ docker compose up --no-start
+$ docker run --rm -v ollama_ollama:/from -v ollama_ollama-models:/to alpine \
+    sh -c 'cp -a /from/models/. /to/ && rm -rf /from/models/*'
+$ docker compose up -d
+$ docker compose exec ollama ollama list
+```
+
+`docker compose up --no-start` lets Compose create the new volume, so that it carries Compose's labels.
+When `OLLAMA_MODELS_PATH` is set, replace `-v ollama_ollama-models:/to` with `-v "$OLLAMA_MODELS_PATH":/to`.
+The copy temporarily needs as much free space as the models take.
+The volume names are prefixed with the Compose project name (`ollama` by default).
+
 ## Web search for Claude Code
 
 Claude Code's built-in WebSearch tool runs on Anthropic's API, so it does not work when Claude Code talks to Ollama.

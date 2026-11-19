@@ -5,6 +5,7 @@ services:
     restart: always
     volumes:
       - ollama:/root/.ollama
+      - ${OLLAMA_MODELS_PATH:-ollama-models}:/root/.ollama/models
     ports:
       - "${OLLAMA_PORT:-127.0.0.1:11434}:11434"
 
@@ -34,3 +35,4 @@ services:
 
 volumes:
   ollama:
+  ollama-models:
