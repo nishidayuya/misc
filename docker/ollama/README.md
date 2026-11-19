@@ -36,6 +36,12 @@ $ docker compose up -d &&
 
 `docker compose exec ollama ollama ps` shows `100% GPU` in the `PROCESSOR` column when the model runs on the GPU.
 
+## Context length and VRAM
+
+Claude Code needs a long context (32k tokens or more), and the K/V cache for it takes several GB of VRAM.
+`docker-compose.yml` quantizes the K/V cache to 8 bits (`OLLAMA_KV_CACHE_TYPE=q8_0`), which roughly halves it.
+Flash attention, which the quantized cache works with, is left to its default (`auto` on supported GPUs).
+
 ## Model storage
 
 Downloaded models are stored in the `ollama-models` volume, mounted on `/root/.ollama/models`.
