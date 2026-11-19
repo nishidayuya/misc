@@ -5,6 +5,8 @@ services:
     restart: always
     volumes:
       - ollama:/root/.ollama
+      # Downloaded models. Set OLLAMA_MODELS_DIR to bind mount a host directory instead.
+      - ${OLLAMA_MODELS_DIR:-ollama-models}:/root/.ollama/models
     ports:
       - "${OLLAMA_PORT:-127.0.0.1:11434}:11434"
 
@@ -34,3 +36,4 @@ services:
 
 volumes:
   ollama:
+  ollama-models:
