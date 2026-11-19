@@ -47,7 +47,7 @@ To use Claude Code with `qwen3-coder:30b` on a GPU with 24 GB of VRAM, setting `
 $ echo "OLLAMA_KV_CACHE_TYPE=q8_0" >> .env
 ```
 
-`qwen3-coder:30b` uses attention in all of its layers, so its K/V cache is large: with `f16`, only about 48k tokens are estimated to fit in VRAM along with the model.
+`qwen3-coder:30b` uses attention in all of its layers, so its K/V cache is large: with `f16`, only 48k tokens (`num_ctx` 49152) fit in the VRAM of an NVIDIA GeForce RTX 3090 along with the model.
 `q8_0` roughly halves the cache, and so roughly doubles the context.
 It applies to all models, and needs flash attention, which is left to its default (`auto` on supported GPUs).
 
@@ -102,6 +102,53 @@ $ claude --model gpt-oss:20b \
 
 Search engines are configured in `searxng/settings.yml`.
 Engines may reject requests with rate limits or CAPTCHAs, so several of them are enabled.
+
+## Claude Code with local models
+
+`bin/claude-local` runs Claude Code with a model on this Ollama, with the web search above.
+The command name chooses the model:
+
+| Command | Model |
+| --- | --- |
+| `claude-local` | `gpt-oss:20b` |
+| `claude-qwen` | `qwen3.6:27b-coding-cc-nvidia-rtx-3090` |
+| `claude-gemma` | `gemma4:26b-cc-nvidia-rtx-3090` |
+
+Install them by making symbolic links in a directory on `PATH`:
+
+```console
+$ ln -s "$PWD"/bin/claude-local "$PWD"/bin/claude-qwen "$PWD"/bin/claude-gemma ~/.local/bin/
+```
+
+They accept the options of `claude`, and these environment variables:
+
+- `CLAUDE_LOCAL_MODEL`: the model to use instead, e.g. `CLAUDE_LOCAL_MODEL=qwen3.8:27b-cc-nvidia-rtx-3090 claude-qwen`
+- `CLAUDE_LOCAL_OLLAMA_URL`: the URL of Ollama (default: `http://127.0.0.1:11434`)
+- `MCP_SEARXNG_URL`: the URL of mcp-searxng (default: `http://127.0.0.1:3000`)
+
+`claude-local` asks Ollama for `num_ctx` of the model, and passes it to Claude Code as `CLAUDE_CODE_MAX_CONTEXT_TOKENS`, so that Claude Code compacts the conversation before it exceeds the context.
+
+### Models for Claude Code
+
+Claude Code sends no context length to Ollama, so Ollama uses `num_ctx` of the model, or `OLLAMA_CONTEXT_LENGTH` of the server.
+`modelfiles/<name>/<tag>.Modelfile` defines a model `<name>:<tag>` that sets `num_ctx` on a downloaded model, without copying its weights.
+The models with the `-cc-nvidia-rtx-3090` suffix have the largest `num_ctx` (up to 128k) that runs at `100% GPU` on an NVIDIA GeForce RTX 3090 (24 GB) with the `f16` K/V cache.
+
+Download the models, and create the models from the Modelfiles:
+
+```console
+$ for model in qwen3-coder:30b qwen3.6:35b-a3b-coding qwen3.6:27b-coding qwen3.8:27b gemma4:26b; do
+    docker compose exec ollama ollama pull "$model"
+  done
+$ for path in modelfiles/*/*.Modelfile; do
+    model="$(basename "$(dirname "$path")"):$(basename "$path" .Modelfile)"
+    docker compose exec -T ollama \
+      sh -c 'cat > /tmp/Modelfile && ollama create "$1" -f /tmp/Modelfile' sh "$model" < "$path"
+  done
+```
+
+Not every model calls tools of Claude Code reliably.
+In a short test, `qwen3-coder:30b` often wrote a tool call as text instead of calling the tool, while `qwen3.6:27b-coding`, `qwen3.8:27b`, and `gemma4:26b` called them.
 
 ## References
 

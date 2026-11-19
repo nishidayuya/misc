@@ -1,0 +1,40 @@
+#!/bin/sh
+
+# Run Claude Code with a model on Ollama in this directory.
+#
+# The model is chosen by the command name (make symbolic links to this
+# file), and CLAUDE_LOCAL_MODEL overrides it.
+
+set -eu
+
+case "$(basename "$0")" in
+  claude-qwen) default_model="qwen3.6:27b-coding-cc-nvidia-rtx-3090" ;;
+  claude-gemma) default_model="gemma4:26b-cc-nvidia-rtx-3090" ;;
+  *) default_model="gpt-oss:20b" ;;
+esac
+model="${CLAUDE_LOCAL_MODEL:-$default_model}"
+ollama_path="$(dirname "$(readlink -f "$0")")/.."
+
+export ANTHROPIC_BASE_URL="${CLAUDE_LOCAL_OLLAMA_URL:-http://127.0.0.1:11434}"
+
+# Let Claude Code compact the conversation before it exceeds num_ctx of the model.
+if [ -z "${CLAUDE_CODE_MAX_CONTEXT_TOKENS:-}" ]; then
+  num_ctx="$(
+    curl -fsS "$ANTHROPIC_BASE_URL/api/show" -d "{\"model\": \"$model\"}" |
+      grep -o 'num_ctx  *[0-9]*' | awk '{ print $2 }'
+  )" || true
+  if [ -n "$num_ctx" ]; then
+    export CLAUDE_CODE_MAX_CONTEXT_TOKENS="$num_ctx"
+  fi
+fi
+
+export ANTHROPIC_AUTH_TOKEN="ollama"
+export ANTHROPIC_API_KEY=""
+export ANTHROPIC_DEFAULT_OPUS_MODEL="$model"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="$model"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="$model"
+export CLAUDE_CODE_SUBAGENT_MODEL="$model"
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+exec claude --model "$model" \
+  --mcp-config "$ollama_path/claude-mcp.json" \
+  --disallowedTools WebSearch "$@"
